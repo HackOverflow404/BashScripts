@@ -2,10 +2,11 @@ alias cat="batcat"
 alias locate="sudo updatedb; locate"
 alias clear="clear && figlet -tckf slant 'Hack Overflow'"
 alias get_idf='. /home/d4rkc10ud/esp/esp-idf/export.sh'
-alias copy='xclip -sel c <'
+alias copy='xclip -sel c'
 alias rwp='code ~/Documents/Projects/RemoteWebcam && exit'
 alias apparmor-stop='sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0'
-alias docker-start='stop-apparmor && systemctl --user restart docker-desktop'
+alias docker-start='apparmor-stop && systemctl --user restart docker-desktop'
 alias cs225='docker-start && code ~/Documents/School/UIUC/CS225 && exit'
 alias cdp='cd ~/Documents/Projects/'
+alias cdi='cd ~/Documents/Internship-Care-Health/'
 alias rupd='cd ~/Documents/Projects/fetch-resume/ && node index.js && cd -'
