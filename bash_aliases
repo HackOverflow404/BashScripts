@@ -1,6 +1,6 @@
-alias cat="batcat"
-alias locate="sudo updatedb; locate"
-alias clear="clear && figlet -tckf slant 'Hack Overflow'"
+alias cat='batcat'
+alias locate='sudo updatedb; locate'
+alias clear='clear && figlet -tckf slant "Hack Overflow"'
 alias get_idf='. /home/d4rkc10ud/esp/esp-idf/export.sh'
 alias copy='xclip -sel c'
 alias rwp='code ~/Documents/Projects/RemoteWebcam && exit'
@@ -11,3 +11,4 @@ alias cdp='cd ~/Documents/Projects/'
 alias cdi='cd ~/Documents/Internship-Care-Health/'
 alias rupd='cd ~/Documents/Projects/fetch-resume/ && node index.js && cd -'
 alias portf='code ~/Documents/Projects/portfolio/ && exit;'
+alias ocr='. ~/Documents/BashScripts/ocr.sh'
