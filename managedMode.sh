@@ -1,23 +1,10 @@
 #!/bin/sh
 echo "Stopping Monitor Mode"
-echo ""
-echo ""
+echo "\n\n"
 sudo iwconfig
 read -p "Enter the interface name you would like to switch to managed mode: " INTERFACE
 sudo airmon-ng stop $INTERFACE
-echo ""
-echo ""
-echo ""
-echo ""
-echo "Starting Network Manager"
-echo ""
-echo ""
+echo "\n\n\n\nStarting Network Manager\n\n"
 sudo service NetworkManager restart
-echo ""
-echo ""
-echo ""
-echo ""
-echo $INTERFACE" is now in managed mode"
-echo ""
-echo ""
+echo -e "\n\n\n\n ${INTERFACE} is now in managed mode\n\n"
 sudo iwconfig
