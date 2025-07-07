@@ -6,6 +6,7 @@ read -rp "Enter commit message: " COMMIT_MESSAGE
 cp "$HOME/.bash_aliases" ./bash_aliases
 cp "$HOME/.tmux.conf" ./tmux.conf
 cp "$HOME/.config/fastfetch/config.jsonc" ./fastfetch-conf.jsonc
+cp "$HOME/.bashrc" ./bashrc
 git add .
 git commit -m "$COMMIT_MESSAGE"
 git push origin HEAD
