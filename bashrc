@@ -122,6 +122,7 @@ export NVM_DIR="$HOME/.nvm"
 
 
 
+# Copy stdout and stderr to clipboard
 copy() {
   "$@" 2>&1 | xclip -sel c
 }
