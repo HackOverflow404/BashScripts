@@ -128,3 +128,7 @@ copy() {
 }
 
 wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz && sleep 0.02 && clear && fastfetch --file ~/Documents/hacking/d4rkc10ud-logo-ASCII-art-small.txt
+
+# Created by `pipx` on 2025-07-23 10:46:34
+export PATH="$PATH:/home/d4rkc10ud/.local/bin"
+export PATH="$HOME/.local/bin:$PATH"
