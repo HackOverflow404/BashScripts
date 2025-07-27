@@ -70,7 +70,7 @@ class Plugin(PluginInstance, TriggerQueryHandler):
                         iconUrls=self.iconUrls,
                         actions=[
                             Action("open", "Open", lambda p=path: openUrl("file://%s" % p)),
-                            Action("copy", "Copy path", lambda: self.copy_to_clipboard(path))
+                            Action("copy", "Copy path", lambda p=path: self.copy_to_clipboard(p))
                         ]
                     )
                 )
