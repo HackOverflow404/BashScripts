@@ -132,3 +132,4 @@ wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz && sleep 0.02 && clear &
 # Created by `pipx` on 2025-07-23 10:46:34
 export PATH="$PATH:/home/d4rkc10ud/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
+. "$HOME/.cargo/env"
