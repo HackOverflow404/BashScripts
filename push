@@ -9,6 +9,7 @@ cp "$HOME/.tmux.conf" ./tmux.conf
 cp "$HOME/.config/fastfetch/config.jsonc" ./fastfetch-conf.jsonc
 cp "$HOME/.bashrc" ./bashrc
 cp "$HOME/.zshrc" ./zshrc
+cp "$HOME/.p10k.zsh" ./p10k.zsh
 git add .
 git commit -m "$COMMIT_MESSAGE"
 git push origin HEAD
