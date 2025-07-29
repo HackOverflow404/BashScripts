@@ -72,6 +72,5 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 # Autostart tmux
-if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
-    tmux attach -t default || tmux new -s default
-fi
+[[ $- != *i* ]] && return
+[[ -z "$TMUX" ]] && exec tmux

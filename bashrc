@@ -135,6 +135,5 @@ export PATH="$HOME/.local/bin:$PATH"
 . "$HOME/.cargo/env"
 
 # Autostart tmux
-if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
-    tmux attach -t default || tmux new -s default
-fi
+[[ $- != *i* ]] && return
+[[ -z "$TMUX" ]] && exec tmux
