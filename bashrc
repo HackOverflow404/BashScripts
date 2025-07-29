@@ -133,3 +133,8 @@ wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz && sleep 0.02 && clear &
 export PATH="$PATH:/home/d4rkc10ud/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
 . "$HOME/.cargo/env"
+
+# Autostart tmux
+if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
+    tmux attach -t default || tmux new -s default
+fi
