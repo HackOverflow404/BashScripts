@@ -10,7 +10,7 @@ echo ""
 echo "Starting Monitor Mode"
 echo ""
 echo ""
-sudo iwconfig
+sudo ifconfig
 read -p "Enter the interface name you would like to switch to managed mode: " INTERFACE
 sudo airmon-ng start $INTERFACE
 echo ""
