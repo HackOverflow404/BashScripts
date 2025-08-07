@@ -1,0 +1,8 @@
+#!/usr/bin/env zsh
+cp "$HOME/.bash_aliases" ./bash_aliases
+cp "$HOME/.zsh_aliases" ./zsh_aliases
+cp "$HOME/.tmux.conf" ./tmux.conf
+cp "$HOME/.config/fastfetch/config.jsonc" ./fastfetch-conf.jsonc
+cp "$HOME/.bashrc" ./bashrc
+cp "$HOME/.zshrc" ./zshrc
+cp "$HOME/.p10k.zsh" ./p10k.zsh
