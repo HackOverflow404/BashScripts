@@ -13,4 +13,4 @@ alias rupd='cd ~/Documents/Projects/fetch-resume/ && node index.js && cd - > /de
 alias rcp='cd ~/Documents/Projects/fetch-resume/ && . venv/bin/activate && python3 main.py && deactivate && cd - > /dev/null'
 alias ocr='. ~/Documents/BashScripts/ocr.sh'
 alias jadx='flatpak run com.github.skylot.jadx'
-alias rsp='cd ~/Documents/Projects/ReceiptScanner; code ./'
+alias rsp='cd ~/Documents/Projects/ReceiptScanner; code ./; clear; npm start'
