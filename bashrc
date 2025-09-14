@@ -133,3 +133,6 @@ wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz && sleep 0.02 && clear &
 export PATH="$PATH:/home/d4rkc10ud/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
 . "$HOME/.cargo/env"
+export PATH=/opt/toolchains/riscv/bin:$PATH
+PATH=/opt/toolchains/riscv/bin/:/home/d4rkc10ud/.local/bin:/home/d4rkc10ud/.nvm/versions/node/v23.1.0/bin:/home/d4rkc10ud/.local/bin:/home/d4rkc10ud/.cargo/bin:/home/d4rkc10ud/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/home/d4rkc10ud/.dotnet/tools:/home/d4rkc10ud/.local/bin:/home/d4rkc10ud/.local/bin:/home/d4rkc10ud/.local/bin
+export PATH=/opt/toolchains/riscv/bin:$PATH

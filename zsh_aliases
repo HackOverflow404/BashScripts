@@ -14,3 +14,4 @@ alias rcp='cd ~/Documents/Projects/fetch-resume/ && . venv/bin/activate && pytho
 alias ocr='. ~/Documents/BashScripts/ocr.sh'
 alias jadx='flatpak run com.github.skylot.jadx'
 alias rsp='cd ~/Documents/Projects/ReceiptScanner; code ./; clear; npm start'
+alias cdu='cd ~/Documents/School/UIUC/'
