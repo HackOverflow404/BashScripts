@@ -74,3 +74,10 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+
+# RISC-V
+export PATH=/opt/toolchains/riscv/bin:$PATH
+PATH=/opt/toolchains/riscv/bin/:/home/d4rkc10ud/.local/bin:/home/d4rkc10ud/.nvm/versions/node/v23.1.0/bin:/home/d4rkc10ud/.local/bin:/home/d4rkc10ud/.cargo/bin:/home/d4rkc10ud/.local/bin:/u>
+export PATH=/opt/toolchains/riscv/bin:$PATH
+export PATH="$HOME/riscv/bin:$PATH"
