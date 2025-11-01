@@ -53,7 +53,29 @@ fi
 
 # Copy stdout and stderr to clipboard
 copy() {
-  "$@" 2>&1 | xclip -sel c
+  _clip_cmd='xclip'; _clip_args=(-selection clipboard)
+
+  pass-through flag -p optional
+  pass_through=0
+  if [ "$1" = "-p" ]; then pass_through=1; shift; fi
+
+  # Run mode: copy command's output if args provided (captures stderr too)
+  if [ $# -gt 0 ]; then
+    "$@" 2>&1 | "${_clip_cmd}" "${_clip_args[@]}"
+    return ${PIPESTATUS[0]:-0}
+  fi
+
+  # Pipeline mode: read from stdin
+  if [ -t 0 ]; then
+    echo "Usage: command | copy   OR   copy [-p] <command...>" >&2
+    return 2
+  fi
+
+  if [ "$pass_through" -eq 1 ]; then
+    tee >( "${_clip_cmd}" "${_clip_args[@]}" >/dev/null )
+  else
+    cat - | "${_clip_cmd}" "${_clip_args[@]}"
+  fi
 }
 
 # RISC-V
@@ -81,3 +103,14 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# Autostart TMUX
+if command -v tmux >/dev/null 2>&1; then
+    # Only auto-start if:
+    # - We're not already in tmux
+    # - We're in an interactive shell
+    # - TERM isn't already set to "linux" (prevents issues on TTYs)
+    if [ -z "$TMUX" ] && [ "$- " != "${-#*i}" ] && [ "$TERM" != "linux" ]; then
+        tmux attach-session -t main || tmux new-session -s main
+    fi
+fi
