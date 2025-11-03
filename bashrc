@@ -121,10 +121,12 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 
-
 # Copy stdout and stderr to clipboard
 copy() {
-  "$@" 2>&1 | xclip -sel c
+  echo "\$ $*" > /tmp/cmd_output.$$  # save the command line
+  "$@" 2>&1 | tee -a /tmp/cmd_output.$$  # run command, append stdout+stderr
+  cat /tmp/cmd_output.$$ | xclip -selection clipboard
+  rm /tmp/cmd_output.$$ 
 }
 
 wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz && sleep 0.02 && clear && fastfetch --file ~/Documents/hacking/d4rkc10ud-logo-ASCII-art-small.txt

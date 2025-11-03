@@ -53,29 +53,10 @@ fi
 
 # Copy stdout and stderr to clipboard
 copy() {
-  _clip_cmd='xclip'; _clip_args=(-selection clipboard)
-
-  pass-through flag -p optional
-  pass_through=0
-  if [ "$1" = "-p" ]; then pass_through=1; shift; fi
-
-  # Run mode: copy command's output if args provided (captures stderr too)
-  if [ $# -gt 0 ]; then
-    "$@" 2>&1 | "${_clip_cmd}" "${_clip_args[@]}"
-    return ${PIPESTATUS[0]:-0}
-  fi
-
-  # Pipeline mode: read from stdin
-  if [ -t 0 ]; then
-    echo "Usage: command | copy   OR   copy [-p] <command...>" >&2
-    return 2
-  fi
-
-  if [ "$pass_through" -eq 1 ]; then
-    tee >( "${_clip_cmd}" "${_clip_args[@]}" >/dev/null )
-  else
-    cat - | "${_clip_cmd}" "${_clip_args[@]}"
-  fi
+  echo "\$ $*" > /tmp/cmd_output.$$  # save the command line
+  "$@" 2>&1 | tee -a /tmp/cmd_output.$$  # run command, append stdout+stderr
+  cat /tmp/cmd_output.$$ | xclip -selection clipboard
+  rm /tmp/cmd_output.$$
 }
 
 # RISC-V
@@ -84,6 +65,7 @@ export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 export PATH="/opt/toolchains/riscv/bin:$PATH"
 export PATH="$HOME/riscv/bin:$PATH"
 
+# Auto full screen
 wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz && sleep 0.02 && clear && fastfetch --file ~/Documents/hacking/d4rkc10ud-logo-ASCII-art-small.txt
 
 # Created by `pipx` on 2025-07-23 10:46:34
