@@ -1,3 +1,6 @@
+# Fullscreen
+wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz
+
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
@@ -6,7 +9,6 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
 fi
 
 # Set up the prompt
-
 autoload -Uz promptinit
 promptinit
 prompt adam1
@@ -65,9 +67,6 @@ export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 export PATH="/opt/toolchains/riscv/bin:$PATH"
 export PATH="$HOME/riscv/bin:$PATH"
 
-# Auto full screen
-wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz && sleep 0.02 && clear && fastfetch --file ~/Documents/hacking/d4rkc10ud-logo-ASCII-art-small.txt
-
 # Created by `pipx` on 2025-07-23 10:46:34
 export PATH="$PATH:/home/d4rkc10ud/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
@@ -87,12 +86,10 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 # Autostart TMUX
-if command -v tmux >/dev/null 2>&1; then
-    # Only auto-start if:
-    # - We're not already in tmux
-    # - We're in an interactive shell
-    # - TERM isn't already set to "linux" (prevents issues on TTYs)
-    if [ -z "$TMUX" ] && [ "$- " != "${-#*i}" ] && [ "$TERM" != "linux" ]; then
-        tmux attach-session -t main || tmux new-session -s main
-    fi
+if [ -z "$TMUX" ]; then
+  exec tmux
 fi
+
+# Auto full screen
+wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz && sleep 0.02 && clear && fastfetch --file ~/Documents/hacking/d4rkc10ud-logo-ASCII-art-small.txt
+source ~/powerlevel10k/powerlevel10k.zsh-theme

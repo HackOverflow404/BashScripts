@@ -1,3 +1,6 @@
+# Fullscreen terminal
+wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz
+
 # ~/.bashrc: executed by bash(1) for non-login shells.
 # see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
 # for examples
@@ -143,12 +146,7 @@ export PATH=/opt/toolchains/riscv/bin:$PATH
 export PATH="$HOME/riscv/bin:$PATH"
 
 # Autostart TMUX
-if command -v tmux >/dev/null 2>&1; then
-    # Only auto-start if:
-    # - We're not already in tmux
-    # - We're in an interactive shell
-    # - TERM isn't already set to "linux" (prevents issues on TTYs)
-    if [ -z "$TMUX" ] && [ "$- " != "${-#*i}" ] && [ "$TERM" != "linux" ]; then
-        tmux attach-session -t main || tmux new-session -s main
-    fi
+if [ -z "$TMUX" ]; then
+  exec tmux
 fi
+PATH=/opt/toolchains/riscv/bin/:/home/hackoverflow/.local/bin:/home/hackoverflow/riscv/bin:/opt/toolchains/riscv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolchains/riscv/bin:/home/hackoverflow/.local/bin:/home/hackoverflow/riscv/bin:/opt/toolchains/riscv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolchains/riscv/bin:/home/hackoverflow/.cargo/bin:/home/hackoverflow/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/home/d4rkc10ud/.local/bin:/home/d4rkc10ud/.local/bin
