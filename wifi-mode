@@ -1,0 +1,293 @@
+#!/usr/bin/env bash
+# wifi-mode — robust toggle between monitor/managed modes (airmon-ng preferred)
+set -Eeuo pipefail
+
+# ---------- pretty output ----------
+if [[ -t 1 ]]; then
+  BOLD=$'\033[1m'; DIM=$'\033[2m'; RED=$'\033[31m'; GRN=$'\033[32m'
+  YEL=$'\033[33m'; CYN=$'\033[36m'; RST=$'\033[0m'
+else
+  BOLD=""; DIM=""; RED=""; GRN=""; YEL=""; CYN=""; RST=""
+fi
+say()  { printf "%s\n" "$*"; }
+info() { say "${CYN}${BOLD}==>${RST} $*"; }
+ok()   { say "${GRN}${BOLD}✔${RST} $*"; }
+warn() { say "${YEL}${BOLD}⚠${RST} $*"; }
+die()  { say "${RED}${BOLD}✖${RST} $*"; exit 1; }
+
+have() { command -v "$1" >/dev/null 2>&1; }
+need_root() { [[ ${EUID:-$(id -u)} -eq 0 ]] || die "Run as root: sudo $0 ..."; }
+
+# timeout helper (never hang forever)
+run_with_timeout() {
+  local secs="$1"; shift
+  if have timeout; then timeout "${secs}s" "$@" || return $?
+  else "$@" || return $? # best effort
+  fi
+}
+
+need_tools() {
+  have iw || die "Missing 'iw' (install: sudo apt install iw)"
+  have ip || die "Missing 'ip' (install: sudo apt install iproute2)"
+}
+
+# ---------- interface discovery ----------
+wifi_ifaces() {
+  # union of iw dev + iwconfig-discovered (covers weird cases)
+  local a b
+  a="$(iw dev 2>/dev/null | awk '$1=="Interface"{print $2}' || true)"
+  if have iwconfig; then
+    b="$(iwconfig 2>/dev/null | awk '
+      /^[[:alnum:]][^ ]*/{iface=$1}
+      /IEEE 802\.11/{print iface}
+    ' | sort -u || true)"
+  else
+    b=""
+  fi
+  printf "%s\n%s\n" "$a" "$b" | awk 'NF' | sort -u
+}
+
+iface_type() {
+  local i="$1"
+  local t=""
+  t="$(iw dev "$i" info 2>/dev/null | awk '/\btype\b/{print $2; exit}' || true)"
+  if [[ -n "$t" ]]; then echo "$t"; return; fi
+  if have iwconfig; then
+    # fallback parse
+    iwconfig "$i" 2>/dev/null | awk -F'Mode:' '/Mode:/{print $2}' | awk '{print tolower($1)}' | head -n1
+  fi
+}
+
+wiphy_of() {
+  local i="$1"
+  iw dev "$i" info 2>/dev/null | awk '/\bwiphy\b/{print $2; exit}' || true
+}
+
+status_all() {
+  local i
+  for i in $(wifi_ifaces); do
+    local t st
+    t="$(iface_type "$i" || true)"
+    st="$(ip -o link show "$i" 2>/dev/null | awk '{print $9}' | tr -d ',' || true)"
+    printf "%s%s%s  type=%s  state=%s\n" "$BOLD" "$i" "$RST" "${t:-?}" "${st:-?}"
+  done
+}
+
+pick_iface() {
+  local want="${1:-}"
+  if [[ -n "$want" ]]; then
+    iw dev "$want" info >/dev/null 2>&1 || die "Interface not found via iw: $want"
+    echo "$want"; return
+  fi
+
+  mapfile -t ifs < <(wifi_ifaces)
+  ((${#ifs[@]})) || die "No Wi-Fi interfaces found."
+
+  if ((${#ifs[@]} == 1)); then
+    echo "${ifs[0]}"; return
+  fi
+
+  warn "Multiple Wi-Fi interfaces found:"
+  local idx=1
+  for i in "${ifs[@]}"; do
+    printf "  %s%d%s) %s  (%stype:%s %s)\n" "$BOLD" "$idx" "$RST" "$i" "$DIM" "$RST" "$(iface_type "$i" || echo '?')"
+    ((idx++))
+  done
+  printf "%sSelect [1-%d]: %s" "$BOLD" "${#ifs[@]}" "$RST"
+  read -r sel
+  [[ "$sel" =~ ^[0-9]+$ ]] || die "Invalid selection."
+  ((sel>=1 && sel<=${#ifs[@]})) || die "Out of range."
+  echo "${ifs[$((sel-1))]}"
+}
+
+monitor_ifaces() {
+  local i
+  for i in $(wifi_ifaces); do
+    [[ "$(iface_type "$i" || true)" == "monitor" ]] && echo "$i"
+  done
+}
+
+monitor_on_same_wiphy() {
+  local base="$1"
+  local w; w="$(wiphy_of "$base" || true)"
+  [[ -n "$w" ]] || return 0
+  local i
+  for i in $(wifi_ifaces); do
+    [[ "$(wiphy_of "$i" || true)" == "$w" ]] || continue
+    [[ "$(iface_type "$i" || true)" == "monitor" ]] && echo "$i"
+  done
+}
+
+# ---------- NetworkManager helpers ----------
+nm_managed() {
+  local iface="$1" yesno="$2"
+  have nmcli || return 0
+  run_with_timeout 3 nmcli dev set "$iface" managed "$yesno" >/dev/null 2>&1 || true
+}
+
+restart_nm() {
+  if have systemctl; then
+    run_with_timeout 8 systemctl restart NetworkManager >/dev/null 2>&1 || true
+    run_with_timeout 8 systemctl start wpa_supplicant >/dev/null 2>&1 || true
+  elif have service; then
+    run_with_timeout 8 service NetworkManager restart >/dev/null 2>&1 || true
+  fi
+}
+
+# ---------- monitor/managed switching ----------
+start_monitor() {
+  local iface="$1" do_kill="$2"
+  have airmon-ng || die "airmon-ng not found (install aircrack-ng)."
+
+  nm_managed "$iface" no
+  ip link set "$iface" up >/dev/null 2>&1 || true
+
+  if [[ "$do_kill" == "1" ]]; then
+    warn "Running: airmon-ng check kill"
+    airmon-ng check kill || true
+  fi
+
+  info "Starting monitor mode on ${BOLD}${iface}${RST} (airmon-ng)"
+  local out
+  out="$(airmon-ng start "$iface" 2>&1 || true)"
+  printf "%s%s%s\n" "$DIM" "$out" "$RST" | sed '/^$/d' || true
+
+  # Parse airmon-ng output for the created monitor interface (common formats)
+  local mon=""
+  mon="$(printf "%s\n" "$out" | sed -nE '
+    /monitor mode/ s/.* on ([^ ]+).*/\1/p
+    /enabled on/   s/.* enabled on ([^ ]+).*/\1/p
+  ' | tail -n1 || true)"
+
+  # If parsing failed, poll for a monitor iface on the same wiphy
+  if [[ -z "$mon" ]]; then
+    local tries=10
+    while ((tries-- > 0)); do
+      mon="$(monitor_on_same_wiphy "$iface" | head -n1 || true)"
+      [[ -n "$mon" ]] && break
+      sleep 0.2
+    done
+  fi
+
+  [[ -n "$mon" ]] || die "Monitor mode not detected. (airmon-ng may have failed or interface list didn’t update.)"
+  [[ "$(iface_type "$mon" || true)" == "monitor" ]] || die "Created interface $mon is not in monitor mode (unexpected)."
+
+  ok "Monitor mode enabled: ${BOLD}${mon}${RST}"
+  say "${DIM}Use this interface in tools:${RST} ${BOLD}${mon}${RST}"
+}
+
+stop_to_managed() {
+  local iface="${1:-}"
+
+  # If user didn't provide iface: prefer stopping monitor iface if exactly one exists
+  if [[ -z "$iface" ]]; then
+    mapfile -t mons < <(monitor_ifaces)
+    if ((${#mons[@]} == 1)); then
+      iface="${mons[0]}"
+    else
+      # fall back to interactive selection
+      iface="$(pick_iface "")"
+    fi
+  else
+    iface="$(pick_iface "$iface")"
+  fi
+
+  have airmon-ng || die "airmon-ng not found (install aircrack-ng)."
+
+  local t; t="$(iface_type "$iface" || true)"
+
+  # If they gave a managed iface, find its monitor twin on same wiphy
+  local target="$iface"
+  if [[ "$t" != "monitor" ]]; then
+    local mon; mon="$(monitor_on_same_wiphy "$iface" | head -n1 || true)"
+    if [[ -n "$mon" ]]; then
+      target="$mon"
+    else
+      warn "No monitor interface found on same radio; will still try managed-mode switch on $iface."
+    fi
+  fi
+
+  if [[ "$(iface_type "$target" || true)" == "monitor" ]]; then
+    info "Stopping monitor mode on ${BOLD}${target}${RST} (airmon-ng)"
+    local out
+    out="$(airmon-ng stop "$target" 2>&1 || true)"
+    printf "%s%s%s\n" "$DIM" "$out" "$RST" | sed '/^$/d' || true
+    ok "Stopped monitor interface: ${BOLD}${target}${RST}"
+  fi
+
+  # Best-effort bring the original iface up + re-enable NM control
+  nm_managed "$iface" yes
+  ip link set "$iface" up >/dev/null 2>&1 || true
+
+  info "Restarting NetworkManager (best effort, timeout-protected)"
+  restart_nm
+
+  ok "Managed mode restoration attempted."
+}
+
+usage() {
+  cat <<EOF
+${BOLD}wifi-mode${RST} — switch a Wi-Fi interface between monitor/managed mode
+
+${BOLD}Usage:${RST}
+  sudo $0 monitor [-Z[-i IFACE] [--kill]
+  sudo $0 managed [-i IFACE]
+  sudo $0 status
+  sudo $0 list
+
+${BOLD}Examples:${RST}
+  sudo $0 monitor -i wlx9cefd5fbfa29 --kill
+  sudo $0 managed            # auto-stops single monitor iface if present
+  sudo $0 managed -i wlan0mon
+EOF
+}
+
+cmd="${1:-}"; shift || true
+IFACE=""
+DO_KILL=0
+
+while (($#)); do
+  case "$1" in
+    -i|--iface) IFACE="${2:-}"; shift 2 ;;
+    --kill) DO_KILL=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) die "Unknown arg: $1 (use --help)" ;;
+  esac
+done
+
+need_root
+need_tools
+
+case "$cmd" in
+  list)
+    wifi_ifaces
+    ;;
+  status)
+    status_all
+    ;;
+  monitor)
+    [[ -n "$IFACE" ]] || IFACE="$(pick_iface "")"
+    info "Current status:"
+    status_all
+    say ""
+    start_monitor "$IFACE" "$DO_KILL"
+    say ""
+    info "New status:"
+    status_all
+    ;;
+  managed)
+    info "Current status:"
+    status_all
+    say ""
+    stop_to_managed "$IFACE"
+    say ""
+    info "New status:"
+    status_all
+    ;;
+  ""|-h|--help)
+    usage
+    ;;
+  *)
+    die "Unknown command: $cmd (use --help)"
+    ;;
+esac
