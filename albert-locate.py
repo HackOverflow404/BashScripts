@@ -1,25 +1,22 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2022-2024 Manuel Schneider
-
-"""
-`locate` wrapper. Note that it is up to you to ensure that the locate database is \
-up to date. Pass params as necessary. The input is split using a shell lexer.
-"""
+# Copyright (c) 2022-2025 Manuel Schneider
 
 import shlex
 import subprocess
 from pathlib import Path
-from albert import *
-import subprocess
 
-md_iid = "3.0"
-md_version = "2.0"
+from albert import (PluginInstance, TriggerQueryHandler, StandardItem, Action, openFile,
+                    makeFileTypeIcon, makeGraphemeIcon, makeComposedIcon, Matcher)
+
+md_iid = "4.0"
+md_version = "3.1.1"
 md_name = "Locate"
-md_description = "Find and open files using locate"
+md_description = "Find files using locate"
 md_license = "MIT"
-md_url = "https://github.com/albertlauncher/python/tree/main/locate"
-md_bin_dependencies = "locate"
-md_authors = "@manuelschneid3r"
+md_url = "https://github.com/albertlauncher/albert-plugin-python-locate"
+md_bin_dependencies = ["locate"]
+md_authors = ["@ManuelSchneid3r"]
+
 
 
 class Plugin(PluginInstance, TriggerQueryHandler):
@@ -28,61 +25,65 @@ class Plugin(PluginInstance, TriggerQueryHandler):
         PluginInstance.__init__(self)
         TriggerQueryHandler.__init__(self)
 
-        self.iconUrls = [
-            "xdg:preferences-system-search",
-            "xdg:system-search",
-            "xdg:search",
-            "xdg:text-x-generic",
-            f"file:{Path(__file__).parent}/locate.svg"
-        ]
-
-    def synopsis(self, query):
-        return "<locate params>"
-
     def defaultTrigger(self):
         return "'"
-
+    
     def copy_to_clipboard(self, text):
         cmd = ['xclip', '-selection', 'clipboard']
         subprocess.run(cmd, input=text.encode())
 
     def handleTriggerQuery(self, query):
-        if len(query.string) > 2:
+        try:
+            args = shlex.split(query.string)
+        except ValueError:
+            return
 
-            try:
-                args = shlex.split(query.string)
-            except ValueError:
-                return
+        if args and all(len(token) > 2 for token in args):
 
-            result = subprocess.run(['locate', *args], stdout=subprocess.PIPE, text=True)
+            # Fetch results from locate and filter them using Matcher
+
+            matcher = Matcher(query.string)
+            items = []
+            with subprocess.Popen(['locate', *args], stdout=subprocess.PIPE, text=True) as proc:
+                for line in proc.stdout:
+                    if not query.isValid:
+                        return
+
+                    path = line.strip()
+                    filename = Path(path).name
+                    if m := matcher.match(filename, path):
+                        items.append((
+                            StandardItem(
+                                id=path,
+                                text=filename,
+                                subtext=path,
+                                icon_factory=lambda: makeFileTypeIcon(path),
+                                actions=[
+                                    Action("open", "Open", lambda p=path: openFile(p)),
+                                    Action("copy", "Copy path", lambda p=path: self.copy_to_clipboard(p))
+                                ]
+                            ),
+                            float(m)
+                        ))
+
+            # Filter using the matcher
+
+            items = sorted(items, key=lambda x: x[1], reverse=True)
+
             if not query.isValid:
                 return
-            lines = sorted(result.stdout.splitlines(), reverse=True)
-            if not query.isValid:
-                return
 
-            for path in lines:
-                query.add(
-                    StandardItem(
-                        id=path,
-                        text=Path(path).name,
-                        subtext=path,
-                        iconUrls=self.iconUrls,
-                        actions=[
-                            Action("open", "Open", lambda p=path: openUrl("file://%s" % p)),
-                            Action("copy", "Copy path", lambda p=path: self.copy_to_clipboard(p))
-                        ]
-                    )
-                )
+            query.add([i[0] for i in items])
+
         else:
             query.add(
                 StandardItem(
                     id="updatedb",
                     text="Update locate database",
                     subtext="Type at least three chars for a search",
-                    iconUrls=self.iconUrls,
+                    icon_factory=lambda: makeFileTypeIcon(path),
                     actions=[
-                        Action("update", "Update", lambda: runTerminal("sudo updatedb"))
+                        Action("update", "Update", lambda: subprocess.run(["sudo", "updatedb"]))
                     ]
                 )
             )
