@@ -88,17 +88,6 @@ fi
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 # ============================================================================
-# Custom Functions
-# ============================================================================
-# Copy stdout and stderr to clipboard
-copy() {
-  echo "\\$ $*" > /tmp/cmd_output.$$
-  "$@" 2>&1 | tee -a /tmp/cmd_output.$$
-  cat /tmp/cmd_output.$$ | xclip -selection clipboard
-  rm /tmp/cmd_output.$$
-}
-
-# ============================================================================
 # Terminal Welcome Screen
 # ============================================================================
 # Only run in interactive shells, not in TMUX sub-shells
