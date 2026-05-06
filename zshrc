@@ -12,7 +12,6 @@ export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="powerlevel10k/powerlevel10k"
 plugins=(
     git
-    zsh-autosuggestions
     zsh-syntax-highlighting
 )
 
@@ -86,15 +85,6 @@ fi
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-
-# ============================================================================
-# Terminal Welcome Screen
-# ============================================================================
-# Only run in interactive shells, not in TMUX sub-shells
-if [[ -z "$TMUX" ]]; then
-    # Fullscreen terminal window (after everything is loaded)
-    wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz 2>/dev/null || true
-fi
 
 # ============================================================================
 # TMUX Autostart
