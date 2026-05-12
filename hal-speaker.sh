@@ -22,8 +22,8 @@ PI_SSH_OPTS=(
   -o IdentitiesOnly=yes
 )
 
-CMD_START_APP='adb shell am start -n com.azefsw.audioconnect/com.azefsw.audioconnect.root.ui.RootActivity'
-CMD_STANDBY_APP='adb shell am start -n br.com.zetabit.ios_standby/br.com.zetabit.ios_standby.MainActivity'
+CMD_START_APP='adb shell am start -n com.azefsw.audioconnect/.root.ui.RootActivity'
+CMD_STANDBY_APP='adb shell am start -n br.com.zetabit.ios_standby/.MainActivity'
 
 remote_run() {
   local cmd="$1"
