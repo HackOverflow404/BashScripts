@@ -94,3 +94,44 @@ if command -v tmux &> /dev/null && [ -n "$PS1" ] && [[ ! "$TERM" =~ screen ]] &&
 fi
 
 clear && fastfetch --file ~/Documents/hacking/d4rkc10ud-logo-ASCII-art-small.txt
+
+# venv-wrapper — added by `venv --install-wrapper`
+# Routes activation through `source`; delegates commands to ~/.local/bin/venv
+venv() {
+    case "${1:-}" in
+        -h|--help|-v|--version|-c|--create|-d|--delete|-l|--list|-i|--info|--install-wrapper)
+            command venv "$@"
+            ;;
+        -)
+            # Re-activate last used venv
+            local last_file="${XDG_CACHE_HOME:-$HOME/.cache}/venv-last"
+            if [[ ! -f "$last_file" ]]; then
+                echo "✗  No previously activated venv found." >&2; return 1
+            fi
+            local entry; entry="$(cat "$last_file")"
+            local dir="${entry%%:*}"; local name="${entry##*:}"
+            if [[ "$dir" != "$(pwd)" ]]; then
+                echo "✗  Last venv was in a different directory: $dir" >&2; return 1
+            fi
+            local activate="./$name/bin/activate"
+            [[ -f "$activate" ]] || { echo "✗  $activate not found." >&2; return 1; }
+            source "$activate"
+            echo -e "\033[0;32m✓\033[0m  Re-activated: $name ($(python --version 2>&1))"
+            ;;
+        *)
+            local name="${1:-venv}"
+            local activate="./$name/bin/activate"
+            if [[ ! -f "$activate" ]]; then
+                echo -e "\033[0;31m✗\033[0m  No activate script at $activate" >&2
+                echo    "   Create one with: venv --create $name" >&2
+                return 1
+            fi
+            source "$activate"
+            echo -e "\033[0;32m✓\033[0m  Activated: $name ($(python --version 2>&1))"
+            # Remember for `venv -` (re-activate)
+            local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
+            mkdir -p "$cache_dir"
+            echo "$(pwd):$name" > "$cache_dir/venv-last"
+            ;;
+    esac
+}
