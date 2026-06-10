@@ -49,6 +49,9 @@ tmp="$(mktemp)"
 cleanup() { rm -f "$tmp"; }
 trap cleanup EXIT
 
+interrupted=0
+trap 'interrupted=1' INT
+
 run_and_tee() {
   # Usage: run_and_tee [-a] -- command args...
   # Runs command, merges stderr->stdout, tees into $tmp, returns the command's exit code.
@@ -93,6 +96,13 @@ if [[ "$mode" == "file" ]]; then
   exit 0
 fi
 
+finish() {
+  local rc="${1:-0}"
+  cat "$tmp" | clip_copy
+  (( interrupted )) && exit 130
+  exit "$rc"
+}
+
 if [[ -n "$shell_cmd" ]]; then
   [[ $# -eq 0 ]] || usage
 
@@ -103,16 +113,14 @@ if [[ -n "$shell_cmd" ]]; then
     else
       rc=$?
     fi
-    cat "$tmp" | clip_copy
-    exit "${rc:-0}"
+    finish "${rc:-0}"
   else
     if run_shell_and_tee -- "$shell_cmd"; then
       rc=0
     else
       rc=$?
     fi
-    cat "$tmp" | clip_copy
-    exit "$rc"
+    finish "$rc"
   fi
 fi
 
@@ -131,14 +139,12 @@ if [[ "$mode" == "all" ]]; then
   else
     rc=$?
   fi
-  cat "$tmp" | clip_copy
-  exit "${rc:-0}"
+  finish "${rc:-0}"
 else
   if run_and_tee -- "$@"; then
     rc=0
   else
     rc=$?
   fi
-  cat "$tmp" | clip_copy
-  exit "$rc"
+  finish "$rc"
 fi

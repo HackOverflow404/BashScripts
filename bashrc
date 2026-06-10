@@ -150,3 +150,6 @@ if [ -z "$TMUX" ]; then
   exec tmux
 fi
 PATH=/opt/toolchains/riscv/bin/:/home/hackoverflow/.local/bin:/home/hackoverflow/riscv/bin:/opt/toolchains/riscv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolchains/riscv/bin:/home/hackoverflow/.local/bin:/home/hackoverflow/riscv/bin:/opt/toolchains/riscv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolchains/riscv/bin:/home/hackoverflow/.cargo/bin:/home/hackoverflow/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/home/d4rkc10ud/.local/bin:/home/d4rkc10ud/.local/bin
+
+# Albert AI Assistant
+[ -f "/home/hackoverflow/.config/albert-ai/config.env" ] && source "/home/hackoverflow/.config/albert-ai/config.env" && export ANTHROPIC_API_KEY
