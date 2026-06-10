@@ -1,25 +1,18 @@
 #!/usr/bin/env bash
 
-SESSION="${XDG_SESSION_TYPE}"
-DESKTOP="${XDG_CURRENT_DESKTOP}"
+pin_x11() {
+  local wid state
+  wid=$(xdotool getactivewindow) || return 1
+  state=$(xprop -id "$wid" _NET_WM_STATE 2>/dev/null)
 
-# Log environment for debugging
-echo "SESSION=$SESSION DESKTOP=$DESKTOP WID=$WID" >> /tmp/pin-debug.log
-
-x11() {
-  sleep 0.2
-  WID=$(xdotool getactivewindow)
-  STATE=$(xprop -id "$WID" _NET_WM_STATE 2>/dev/null)
-  echo "WID=$WID STATE=$STATE" >> /tmp/pin-debug.log
-
-  if echo "$STATE" | grep -q "_NET_WM_STATE_ABOVE"; then
-    wmctrl -i -r "$WID" -b remove,above
+  if echo "$state" | grep -q "_NET_WM_STATE_ABOVE"; then
+    wmctrl -i -r "$wid" -b remove,above
   else
-    wmctrl -i -r "$WID" -b add,above
+    wmctrl -i -r "$wid" -b add,above
   fi
 }
 
-wayland_gnome() {
+pin_wayland_gnome() {
   gdbus call --session \
     --dest org.gnome.Shell \
     --object-path /org/gnome/Shell \
@@ -28,5 +21,11 @@ wayland_gnome() {
     2>/dev/null
 }
 
-# Hardcode x11 path for now to test
-x11
+main() {
+  case "${XDG_SESSION_TYPE}" in
+    wayland) pin_wayland_gnome ;;
+    *)       pin_x11 ;;
+  esac
+}
+
+main
