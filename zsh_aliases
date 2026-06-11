@@ -22,4 +22,4 @@ alias rwp-cam-start='sudo modprobe v4l2loopback devices=1 card_label="Pixel Stre
 alias hal-standby='ssh -i ~/.ssh/hal_speaker_pi -o BatchMode=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes user@tps-l2.local "adb shell am start -n br.com.zetabit.ios_standby/br.com.zetabit.ios_standby.MainActivity" > /dev/null 2>&1'
 alias cdh='cd ~/Documents/Hopcharge'
 alias claude-work='CLAUDE_CONFIG_DIR=$HOME/.claude-hopcharge claude'
-alias kazam='GI_TYPELIB_PATH=/usr/lib/girepository-1.0 kazam'
+alias screen-recording='GI_TYPELIB_PATH=/usr/lib/girepository-1.0 kazam'
