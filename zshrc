@@ -83,6 +83,37 @@ if [ -f ~/.zsh_aliases ]; then
     . ~/.zsh_aliases
 fi
 
+# Wrapper around `caelestia scheme set` that also regenerates the
+# alpha-suffix color variables Hyprland needs (e.g. $primarye6) and
+# reloads the Hyprland config. Usage: caelestia-scheme set -n shadotheme
+caelestia-scheme() {
+    caelestia scheme "$@"
+    if [[ "$1" == "set" ]]; then
+        python3 - << 'EOF'
+import re
+from pathlib import Path
+conf = Path.home() / ".config/hypr/scheme/current.conf"
+colors = dict(re.findall(r'\$(\w+)\s*=\s*([0-9a-fA-F]{6})', conf.read_text()))
+variants = [
+    ("primarye6",          colors.get("primary", ""),          "e6"),
+    ("primaryd4",          colors.get("primary", ""),          "d4"),
+    ("outlined4",          colors.get("outline", ""),          "d4"),
+    ("secondaryd4",        colors.get("secondary", ""),        "d4"),
+    ("onSurfaceVariant11", colors.get("onSurfaceVariant", ""), "11"),
+    ("inversePrimary10",   colors.get("inversePrimary", ""),   "10"),
+]
+out = Path.home() / ".config/caelestia/hypr-vars.conf"
+out.write_text(
+    "# Alpha-channel variants derived from current scheme (auto-generated)\n"
+    + "\n".join(f"${n} = {b}{a}" for n, b, a in variants)
+    + "\n"
+)
+print("Alpha vars updated.")
+EOF
+        hyprctl reload 2>/dev/null && echo "Hyprland reloaded." || echo "(Hyprland not running — reload skipped.)"
+    fi
+}
+
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
