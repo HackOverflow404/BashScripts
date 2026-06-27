@@ -20,7 +20,7 @@ alias git-sets='git config user.name "mg90"; git config user.email "mg90@illinoi
 alias rwp-mic-start='pactl load-module module-null-sink sink_name="Pixel-Streamer-Mic" sink_properties=device.description="Pixel Streamer Mic"'
 alias rwp-cam-start='sudo modprobe v4l2loopback devices=1 card_label="Pixel Streamer Webcam"'
 alias hal-standby='ssh -i ~/.ssh/hal_speaker_pi -o BatchMode=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes user@tps-l2.local "adb shell am start -n br.com.zetabit.ios_standby/br.com.zetabit.ios_standby.MainActivity" > /dev/null 2>&1'
-alias cdh='cd ~/Documents/Hopcharge/hopcharge-creative-pipeline && tmux split-window -v "npm run dev; exec $SHELL" && claude-work'
+alias cdh='cd ~/Documents/Hopcharge/hopcharge-creative-pipeline && docker start hopcharge-pg hopcharge-creative-pipeline-minio-init-1; tmux split-window -v && tmux send-keys "cd ~/Documents/Hopcharge/hopcharge-creative-pipeline && npm run dev" Enter && tmux last-pane && claude-work'
 alias claude-work='CLAUDE_CONFIG_DIR=$HOME/.claude-hopcharge claude'
 alias screen-recording='GI_TYPELIB_PATH=/usr/lib/girepository-1.0 kazam'
 alias code='zed'
