@@ -26,5 +26,45 @@ alias screen-recording='GI_TYPELIB_PATH=/usr/lib/girepository-1.0 kazam'
 alias code='zed'
 alias pip='uv pip'
 alias pip3='uv pip'
-alias update='sudo apt update && sudo apt upgrade -y; sudo snap refresh; flatpak update -y; fwupdmgr refresh --force && fwupdmgr update; git -C ~/.local/share/caelestia add -A && git -C ~/.local/share/caelestia diff --cached --quiet || git -C ~/.local/share/caelestia commit -m "chore: update local config" && git -C ~/.local/share/caelestia pull --rebase --autostash && git -C ~/.local/share/caelestia push; npm update -g; cargo install-update -a'
+function update() {
+    local errors=0
+    local caelestia_dir=~/.local/share/caelestia
+
+    print -P "\n%F{blue}==> APT%f"
+    sudo apt update && sudo apt upgrade -y || { print -P "%F{red}APT failed%f"; (( errors++ )) }
+
+    print -P "\n%F{blue}==> SNAP%f"
+    sudo snap refresh || { print -P "%F{red}SNAP failed%f"; (( errors++ )) }
+
+    print -P "\n%F{blue}==> FLATPAK%f"
+    flatpak update -y || { print -P "%F{red}Flatpak failed%f"; (( errors++ )) }
+
+    print -P "\n%F{blue}==> FIRMWARE%f"
+    fwupdmgr refresh --force && fwupdmgr update || print -P "%F{yellow}Firmware skipped or unavailable (non-fatal)%f"
+
+    print -P "\n%F{blue}==> CAELESTIA DOTFILES%f"
+    if ! git -C "$caelestia_dir" diff --quiet; then
+        git -C "$caelestia_dir" add -A
+        git -C "$caelestia_dir" commit -m "chore: update local config" || { print -P "%F{red}Git commit failed%f"; (( errors++ )) }
+    fi
+    if git -C "$caelestia_dir" pull --rebase --autostash; then
+        git -C "$caelestia_dir" push --force-with-lease || print -P "%F{yellow}Push failed — check remote%f"
+    else
+        print -P "%F{red}!!! Rebase conflict — fix manually:%f"
+        print "    cd $caelestia_dir"
+        print "    git status  # see conflicting files"
+        print "    # resolve conflicts, then:"
+        print "    git add <files> && git rebase --continue"
+        print "    git push --force-with-lease"
+        (( errors++ ))
+    fi
+
+    print -P "\n%F{blue}==> NPM GLOBAL%f"
+    npm update -g || { print -P "%F{red}NPM failed%f"; (( errors++ )) }
+
+    print -P "\n%F{blue}==> CARGO%f"
+    cargo install-update -a || { print -P "%F{red}Cargo failed%f"; (( errors++ )) }
+
+    (( errors == 0 )) && print -P "\n%F{green}==> All done!%f" || print -P "\n%F{yellow}==> Done with $errors error(s).%f"
+}
 alias cdr='cdr && exit'
