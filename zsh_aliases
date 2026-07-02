@@ -30,8 +30,14 @@ function update() {
     local errors=0
     local caelestia_dir=~/.local/share/caelestia
 
+    # Print error summary even if interrupted
+    trap '(( errors > 0 )) && print -P "\n%F{yellow}==> Interrupted with $errors error(s) so far.%f"' INT TERM
+
+    print -P "\n%F{blue}==> CHEZMOI%f"
+    chezmoi upgrade || { print -P "%F{red}chezmoi upgrade failed%f"; (( errors++ )) }
+
     print -P "\n%F{blue}==> APT%f"
-    sudo apt update && sudo apt upgrade -y || { print -P "%F{red}APT failed%f"; (( errors++ )) }
+    sudo apt update && sudo apt upgrade -y --allow-downgrades || { print -P "%F{red}APT failed%f"; (( errors++ )) }
 
     print -P "\n%F{blue}==> SNAP%f"
     sudo snap refresh || { print -P "%F{red}SNAP failed%f"; (( errors++ )) }
@@ -40,31 +46,72 @@ function update() {
     flatpak update -y || { print -P "%F{red}Flatpak failed%f"; (( errors++ )) }
 
     print -P "\n%F{blue}==> FIRMWARE%f"
-    fwupdmgr refresh --force && fwupdmgr update || print -P "%F{yellow}Firmware skipped or unavailable (non-fatal)%f"
+    fwupdmgr refresh --force && fwupdmgr update --assume-yes || print -P "%F{yellow}Firmware skipped or unavailable (non-fatal)%f"
 
-    print -P "\n%F{blue}==> CAELESTIA DOTFILES%f"
-    if ! git -C "$caelestia_dir" diff --quiet; then
-        git -C "$caelestia_dir" add -A
-        git -C "$caelestia_dir" commit -m "chore: update local config" || { print -P "%F{red}Git commit failed%f"; (( errors++ )) }
-    fi
-    if git -C "$caelestia_dir" pull --rebase --autostash; then
-        git -C "$caelestia_dir" push --force-with-lease || print -P "%F{yellow}Push failed — check remote%f"
-    else
-        print -P "%F{red}!!! Rebase conflict — fix manually:%f"
-        print "    cd $caelestia_dir"
-        print "    git status  # see conflicting files"
-        print "    # resolve conflicts, then:"
-        print "    git add <files> && git rebase --continue"
-        print "    git push --force-with-lease"
-        (( errors++ ))
+    print -P "\n%F{blue}==> OH-MY-ZSH%f"
+    LANG= git -C "${ZSH:-~/.oh-my-zsh}" pull --rebase --autostash || { print -P "%F{red}oh-my-zsh update failed%f"; (( errors++ )) }
+
+    print -P "\n%F{blue}==> PIPX%f"
+    local pipx_out pipx_exit
+    pipx_out=$(pipx upgrade-all 2>&1); pipx_exit=$?
+    print "$pipx_out"
+    if echo "$pipx_out" | grep -q "No module named pip"; then
+        print -P "%F{yellow}Broken pipx venvs (Python upgraded) — reinstalling...%f"
+        pipx reinstall-all && pipx upgrade-all || { print -P "%F{red}pipx failed after reinstall%f"; (( errors++ )) }
+    elif (( pipx_exit != 0 )); then
+        print -P "%F{red}pipx upgrade-all failed%f"; (( errors++ ))
     fi
 
     print -P "\n%F{blue}==> NPM GLOBAL%f"
-    npm update -g || { print -P "%F{red}NPM failed%f"; (( errors++ )) }
+    npm update -g 2>&1 | grep -Ev "^npm (warn|notice)" || true
+    (( pipestatus[1] != 0 )) && { print -P "%F{red}NPM failed%f"; (( errors++ )) }
+
+    print -P "\n%F{blue}==> RUST%f"
+    rustup update || { print -P "%F{red}rustup update failed%f"; (( errors++ )) }
 
     print -P "\n%F{blue}==> CARGO%f"
     cargo install-update -a || { print -P "%F{red}Cargo failed%f"; (( errors++ )) }
 
+    print -P "\n%F{blue}==> UV%f"
+    uv self update || { print -P "%F{red}uv self update failed%f"; (( errors++ )) }
+
+    print -P "\n%F{blue}==> CAELESTIA DOTFILES%f"
+    if [ -d "$caelestia_dir/.git/rebase-merge" ] || [ -d "$caelestia_dir/.git/rebase-apply" ]; then
+        print -P "%F{red}!!! Caelestia repo is mid-rebase — finish it first:%f"
+        print "    cd $caelestia_dir && git status"
+        (( errors++ ))
+    else
+        if ! git -C "$caelestia_dir" diff --quiet || ! git -C "$caelestia_dir" diff --cached --quiet; then
+            git -C "$caelestia_dir" add -A
+            git -C "$caelestia_dir" commit -m "chore: update local config" || { print -P "%F{red}Git commit failed%f"; (( errors++ )) }
+        fi
+        if git -C "$caelestia_dir" pull --rebase --autostash; then
+            git -C "$caelestia_dir" push --force || print -P "%F{yellow}Push failed — check remote%f"
+        else
+            print -P "%F{red}!!! Rebase conflict — fix manually:%f"
+            print "    cd $caelestia_dir"
+            print "    git status  # see conflicting files"
+            print "    # resolve conflicts, then:"
+            print "    git add <files> && git rebase --continue"
+            print "    git push --force"
+            (( errors++ ))
+        fi
+    fi
+
+    print -P "\n%F{blue}==> DOTFILES%f"
+    if ! chezmoi re-add; then
+        print -P "%F{red}chezmoi re-add failed%f"; (( errors++ ))
+    else
+        chezmoi git -- add -A
+        if ! chezmoi git -- diff --cached --quiet; then
+            chezmoi git -- commit -m "chore: sync dotfiles" && \
+                chezmoi git -- push || { print -P "%F{red}Dotfiles push failed%f"; (( errors++ )) }
+        else
+            print "Nothing to sync."
+        fi
+    fi
+
+    trap - INT TERM
     (( errors == 0 )) && print -P "\n%F{green}==> All done!%f" || print -P "\n%F{yellow}==> Done with $errors error(s).%f"
 }
 alias cdr='cdr && exit'
