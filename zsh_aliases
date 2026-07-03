@@ -86,14 +86,14 @@ function update() {
             git -C "$caelestia_dir" commit -m "chore: update local config" || { print -P "%F{red}Git commit failed%f"; (( errors++ )) }
         fi
         if git -C "$caelestia_dir" pull --rebase --autostash; then
-            git -C "$caelestia_dir" push --force || print -P "%F{yellow}Push failed — check remote%f"
+            git -C "$caelestia_dir" push --force-with-lease || print -P "%F{yellow}Push failed — check remote%f"
         else
             print -P "%F{red}!!! Rebase conflict — fix manually:%f"
             print "    cd $caelestia_dir"
             print "    git status  # see conflicting files"
             print "    # resolve conflicts, then:"
             print "    git add <files> && git rebase --continue"
-            print "    git push --force"
+            print "    git push --force-with-lease"
             (( errors++ ))
         fi
     fi
