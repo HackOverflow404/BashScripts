@@ -36,6 +36,8 @@ $(_h "USAGE")
 $(_h "CREATE  (-c)")
   NAME defaults to 'venv'. VERSION is a Python minor version e.g. 3.12.
   If omitted, the system default python3 is used.
+  Creation is handled by uv, which will download the requested Python
+  version automatically if it isn't already installed.
 
   venv -c                       Create ./venv with default python3
   venv -c .venv                 Create ./.venv with default python3
@@ -175,8 +177,7 @@ _transitive_deps() {
 cmd_create() {
     local name="$1" python="$2" req_file="$3" auto_req="$4"
 
-    command -v "$python" &>/dev/null || _die "Python interpreter not found: '$python'"
-    local py_ver; py_ver="$("$python" --version 2>&1)"
+    command -v uv &>/dev/null || _die "uv not found. Install it: https://docs.astral.sh/uv/"
 
     if [[ -d "$name" ]]; then
         if _is_venv_dir "$name"; then
@@ -184,14 +185,16 @@ cmd_create() {
         else
             _warn "'$name' exists but doesn't look like a venv"
         fi
-        printf "  Overwrite? [y/N] "; read -r confirm
+        printf "  Overwrite? [y/N] "
+        confirm=""; read -r confirm || true
+        echo ""
         [[ "${confirm,,}" == "y" ]] || { _ok "Aborted."; return 0; }
         rm -rf "$name"
     fi
 
-    _ok "Creating '$name' with $py_ver …"
-    "$python" -m venv "$name" || _die "Failed to create virtual environment."
-    _ok "Created: $(pwd)/$name"
+    _ok "Creating '$name' with $python (via uv) …"
+    uv venv --python "$python" --seed --quiet "$name" || _die "Failed to create virtual environment."
+    _ok "Created: $(pwd)/$name ($(_py_ver "$name"))"
 
     local req=""
     if   [[ -n "$req_file" ]];                              then req="$req_file"
@@ -250,7 +253,9 @@ cmd_freeze() {
             echo -e "    ${RED}- $l${NC}"
         done
         echo ""
-        printf "  Overwrite %s? [y/N] " "$output"; read -r confirm
+        printf "  Overwrite %s? [y/N] " "$output"
+        confirm=""; read -r confirm || true
+        echo ""
         [[ "${confirm,,}" == "y" ]] || { _ok "Aborted."; return 0; }
     fi
 
@@ -340,7 +345,9 @@ cmd_clean() {
         return 0
     fi
 
-    printf "  Remove %d package(s)? [y/N] " "${#removable[@]}"; read -r confirm
+    printf "  Remove %d package(s)? [y/N] " "${#removable[@]}"
+    confirm=""; read -r confirm || true
+    echo ""
     [[ "${confirm,,}" == "y" ]] || { _ok "Aborted."; return 0; }
 
     "$pip_bin" uninstall -y "${removable[@]}" \
@@ -353,7 +360,9 @@ cmd_delete() {
     local name="$1"
     _is_venv_dir "$name" || _die "No virtual environment found at './$name'"
     echo -e "  ${BOLD}$name${NC}  $(_py_ver "$name")  $(_pkg_count "$name") packages"
-    printf "  Permanently delete? [y/N] "; read -r confirm
+    printf "  Permanently delete? [y/N] "
+    confirm=""; read -r confirm || true
+    echo ""
     [[ "${confirm,,}" == "y" ]] || { _ok "Aborted."; return 0; }
     rm -rf "$name"
     _ok "Deleted: $name"
