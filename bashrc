@@ -153,3 +153,7 @@ PATH=/opt/toolchains/riscv/bin/:/home/hackoverflow/.local/bin:/home/hackoverflow
 
 # Albert AI Assistant
 [ -f "/home/hackoverflow/.config/albert-ai/config.env" ] && source "/home/hackoverflow/.config/albert-ai/config.env" && export ANTHROPIC_API_KEY
+
+
+# Added by Antigravity CLI installer
+export PATH="/home/hackoverflow/.local/bin:$PATH"
