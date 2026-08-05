@@ -177,3 +177,10 @@ eval "$(pyenv init -)"
 
 # Added by Antigravity CLI installer
 export PATH="/home/hackoverflow/.local/bin:$PATH"
+
+# bun completions
+[ -s "/home/hackoverflow/.bun/_bun" ] && source "/home/hackoverflow/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
