@@ -115,3 +115,4 @@ function update() {
     (( errors == 0 )) && print -P "\n%F{green}==> All done!%f" || print -P "\n%F{yellow}==> Done with $errors error(s).%f"
 }
 alias cdr='cdr && exit'
+alias uclear='unalias clear && \clear'
