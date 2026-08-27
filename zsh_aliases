@@ -26,6 +26,7 @@ alias screen-recording='GI_TYPELIB_PATH=/usr/lib/girepository-1.0 kazam'
 alias code='zed'
 alias pip='uv pip'
 alias pip3='uv pip'
+alias batt='upower -i $(upower -e | grep BAT) | grep -E "state|percentage|time"'
 function update() {
     local errors=0
     local caelestia_dir=~/.local/share/caelestia
