@@ -1,102 +1,100 @@
-alias cat='batcat'
-alias locate='sudo updatedb; command locate'
-alias clear='clear && figlet -tckf slant "Hack Overflow"'
-alias get_idf='. /home/d4rkc10ud/esp/esp-idf/export.sh'
-alias copy-out='xclip -sel c'
-alias rwp='cd ~/Documents/Projects/RemoteWebcam && { code ./; cd linux-app && venv; }'
-alias apparmor-stop='sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0'
-alias docker-start='apparmor-stop && systemctl --user restart docker-desktop'
-alias cs225='docker-start && code ~/Documents/School/UIUC/CS225 && exit'
-alias cdp='cd ~/Documents/Projects/'
-alias cdi='cd ~/Documents/Internship-Care-Health/'
-alias rupd='cd ~/Documents/Projects/fetch-resume/ && node index.js && cd - > /dev/null'
-alias rcp='(cd ~/Documents/Projects/fetch-resume/ && setsid ./venv/bin/python3 main.py </dev/null >/tmp/fetch-resume.log 2>&1 &)'
-alias ocr='. ~/Documents/BashScripts/ocr.sh'
-alias jadx='flatpak run com.github.skylot.jadx'
-alias rsp='cd ~/Documents/Projects/ReceiptScanner && code ./ && clear && npm start'
-alias cdu='cd ~/Documents/School/UIUC/'
-alias git-setp='git config user.name "Medhansh Garg"; git config user.email "medhansh2005@gmail.com"'
-alias git-sets='git config user.name "mg90"; git config user.email "mg90@illinois.edu"'
-alias rwp-mic-start='pactl load-module module-null-sink sink_name="Pixel-Streamer-Mic" sink_properties=device.description="Pixel Streamer Mic"'
-alias rwp-cam-start='sudo modprobe v4l2loopback devices=1 card_label="Pixel Streamer Webcam"'
-alias hal-standby='ssh -i ~/.ssh/hal_speaker_pi -o BatchMode=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes user@tps-l2.local "adb shell am start -n br.com.zetabit.ios_standby/br.com.zetabit.ios_standby.MainActivity" > /dev/null 2>&1'
-alias cdh='cd ~/Documents/Hopcharge/hopcharge-creative-pipeline && docker start hopcharge-pg hopcharge-creative-pipeline-minio-init-1; tmux split-window -v && tmux send-keys "cd ~/Documents/Hopcharge/hopcharge-creative-pipeline && npm run dev" Enter && tmux last-pane && claude-work'
-alias claude-work='CLAUDE_CONFIG_DIR=$HOME/.claude-hopcharge claude'
-alias screen-recording='GI_TYPELIB_PATH=/usr/lib/girepository-1.0 kazam'
+# ===========================================================================
+# Files / tools
+# ===========================================================================
+alias cat='bat --paging=never'
+alias copy-out='wl-copy'
 alias code='zed'
 alias pip='uv pip'
 alias pip3='uv pip'
 alias batt='upower -i $(upower -e | grep BAT) | grep -E "state|percentage|time"'
-function update() {
-    local errors=0
-    local caelestia_dir=~/.local/share/caelestia
+alias jadx='flatpak run com.github.skylot.jadx'
+alias ocr='. ~/Documents/BashScripts/ocr.sh'
+alias locate='sudo updatedb; command locate'
+alias apparmor-stop='sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0'
 
-    # Print error summary even if interrupted
+# clear + banner
+alias clear='clear && figlet -tckf slant "Hack Overflow"'
+alias uclear='unalias clear && \clear'
+
+# ===========================================================================
+# Navigation
+# ===========================================================================
+alias cdp='cd ~/Documents/Projects/'
+alias cdi='cd ~/Documents/Internship-Care-Health/'
+alias cdu='cd ~/Documents/School/UIUC/'
+alias cdr='cdr && exit'
+
+# ===========================================================================
+# Git identity switch
+# ===========================================================================
+alias git-setp='git config user.name "Medhansh Garg"; git config user.email "medhansh2005@gmail.com"'
+alias git-sets='git config user.name "mg90"; git config user.email "mg90@illinois.edu"'
+
+# ===========================================================================
+# Projects
+# ===========================================================================
+alias rwp='cd ~/Documents/Projects/RemoteWebcam && { code ./; cd linux-app && venv; }'
+alias rsp='cd ~/Documents/Projects/ReceiptScanner && code ./ && clear && npm start'
+alias rupd='cd ~/Documents/Projects/fetch-resume/ && node index.js && cd - > /dev/null'
+alias rcp='(cd ~/Documents/Projects/fetch-resume/ && setsid ./venv/bin/python3 main.py </dev/null >/tmp/fetch-resume.log 2>&1 &)'
+alias rwp-mic-start='pactl load-module module-null-sink sink_name="Pixel-Streamer-Mic" sink_properties=device.description="Pixel Streamer Mic"'
+alias rwp-cam-start='sudo modprobe v4l2loopback devices=1 card_label="Pixel Streamer Webcam"'
+
+# ===========================================================================
+# Hopcharge
+# ===========================================================================
+alias claude-work='CLAUDE_CONFIG_DIR=$HOME/.claude-hopcharge claude'
+alias cdh='cd ~/Documents/Hopcharge/hopcharge-creative-pipeline && docker start hopcharge-pg hopcharge-creative-pipeline-minio-init-1; tmux split-window -v && tmux send-keys "cd ~/Documents/Hopcharge/hopcharge-creative-pipeline && npm run dev" Enter && tmux last-pane && claude-work'
+
+# ===========================================================================
+# TPS-L2 NAS / HAL speaker
+# ===========================================================================
+alias hal-standby='ssh -i ~/.ssh/id_ed25519_tps-l2 -o BatchMode=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes user@tps-l2.local "adb shell am start -n br.com.zetabit.ios_standby/br.com.zetabit.ios_standby.MainActivity" > /dev/null 2>&1'
+
+# Dropped in the Omarchy migration (re-add if you reinstall the tooling):
+#   get_idf        — esp-idf export from a stale /home/d4rkc10ud path
+#   docker-start   — depended on docker-desktop (systemd --user service)
+#   cs225          — depended on docker-start
+#   screen-recording — kazam (X11)
+
+# ===========================================================================
+# system update — Arch / Omarchy
+# ===========================================================================
+update() {
+    local errors=0
+
+    # Print an error summary even if interrupted
     trap '(( errors > 0 )) && print -P "\n%F{yellow}==> Interrupted with $errors error(s) so far.%f"' INT TERM
 
-    print -P "\n%F{blue}==> CHEZMOI%f"
-    chezmoi upgrade || { print -P "%F{red}chezmoi upgrade failed%f"; (( errors++ )) }
+    print -P "\n%F{blue}==> OMARCHY + PACMAN + AUR%f"
+    omarchy-update -y || { print -P "%F{red}omarchy-update failed%f"; (( errors++ )) }
 
-    print -P "\n%F{blue}==> APT%f"
-    sudo apt update && sudo apt upgrade -y --allow-downgrades || { print -P "%F{red}APT failed%f"; (( errors++ )) }
-
-    print -P "\n%F{blue}==> SNAP%f"
-    sudo snap refresh || { print -P "%F{red}SNAP failed%f"; (( errors++ )) }
-
-    print -P "\n%F{blue}==> FLATPAK%f"
-    flatpak update -y || { print -P "%F{red}Flatpak failed%f"; (( errors++ )) }
-
-    print -P "\n%F{blue}==> FIRMWARE%f"
-    fwupdmgr refresh --force && fwupdmgr update --assume-yes || print -P "%F{yellow}Firmware skipped or unavailable (non-fatal)%f"
-
-    print -P "\n%F{blue}==> OH-MY-ZSH%f"
-    LANG= git -C "${ZSH:-~/.oh-my-zsh}" pull --rebase --autostash || { print -P "%F{red}oh-my-zsh update failed%f"; (( errors++ )) }
-
-    print -P "\n%F{blue}==> PIPX%f"
-    local pipx_out pipx_exit
-    pipx_out=$(pipx upgrade-all 2>&1); pipx_exit=$?
-    print "$pipx_out"
-    if echo "$pipx_out" | grep -q "No module named pip"; then
-        print -P "%F{yellow}Broken pipx venvs (Python upgraded) — reinstalling...%f"
-        pipx reinstall-all && pipx upgrade-all || { print -P "%F{red}pipx failed after reinstall%f"; (( errors++ )) }
-    elif (( pipx_exit != 0 )); then
-        print -P "%F{red}pipx upgrade-all failed%f"; (( errors++ ))
+    if command -v flatpak &> /dev/null; then
+        print -P "\n%F{blue}==> FLATPAK%f"
+        flatpak update -y || { print -P "%F{red}Flatpak failed%f"; (( errors++ )) }
     fi
 
-    print -P "\n%F{blue}==> NPM GLOBAL%f"
-    npm update -g 2>&1 | grep -Ev "^npm (warn|notice)" || true
-    (( pipestatus[1] != 0 )) && { print -P "%F{red}NPM failed%f"; (( errors++ )) }
+    if command -v fwupdmgr &> /dev/null; then
+        print -P "\n%F{blue}==> FIRMWARE%f"
+        fwupdmgr refresh --force && fwupdmgr update --assume-yes || print -P "%F{yellow}Firmware skipped or unavailable (non-fatal)%f"
+    fi
 
-    print -P "\n%F{blue}==> RUST%f"
-    rustup update || { print -P "%F{red}rustup update failed%f"; (( errors++ )) }
+    print -P "\n%F{blue}==> MISE%f"
+    mise up || { print -P "%F{red}mise up failed%f"; (( errors++ )) }
 
-    print -P "\n%F{blue}==> CARGO%f"
-    cargo install-update -a || { print -P "%F{red}Cargo failed%f"; (( errors++ )) }
+    print -P "\n%F{blue}==> OH-MY-ZSH%f"
+    LANG= git -C "${ZSH:-$HOME/.oh-my-zsh}" pull --rebase --autostash || { print -P "%F{red}oh-my-zsh update failed%f"; (( errors++ )) }
 
-    print -P "\n%F{blue}==> UV%f"
-    uv self update || { print -P "%F{red}uv self update failed%f"; (( errors++ )) }
+    if command -v npm &> /dev/null; then
+        print -P "\n%F{blue}==> NPM GLOBAL%f"
+        npm update -g 2>&1 | grep -Ev "^npm (warn|notice)" || true
+        (( pipestatus[1] != 0 )) && { print -P "%F{red}NPM failed%f"; (( errors++ )) }
+    fi
 
-    print -P "\n%F{blue}==> CAELESTIA DOTFILES%f"
-    if [ -d "$caelestia_dir/.git/rebase-merge" ] || [ -d "$caelestia_dir/.git/rebase-apply" ]; then
-        print -P "%F{red}!!! Caelestia repo is mid-rebase — finish it first:%f"
-        print "    cd $caelestia_dir && git status"
-        (( errors++ ))
-    else
-        if ! git -C "$caelestia_dir" diff --quiet || ! git -C "$caelestia_dir" diff --cached --quiet; then
-            git -C "$caelestia_dir" add -A
-            git -C "$caelestia_dir" commit -m "chore: update local config" || { print -P "%F{red}Git commit failed%f"; (( errors++ )) }
-        fi
-        if git -C "$caelestia_dir" pull --rebase --autostash; then
-            git -C "$caelestia_dir" push --force-with-lease || print -P "%F{yellow}Push failed — check remote%f"
-        else
-            print -P "%F{red}!!! Rebase conflict — fix manually:%f"
-            print "    cd $caelestia_dir"
-            print "    git status  # see conflicting files"
-            print "    # resolve conflicts, then:"
-            print "    git add <files> && git rebase --continue"
-            print "    git push --force-with-lease"
-            (( errors++ ))
-        fi
+    if command -v rustup &> /dev/null; then
+        print -P "\n%F{blue}==> RUST%f"
+        rustup update || { print -P "%F{red}rustup update failed%f"; (( errors++ )) }
+        command -v cargo-install-update &> /dev/null && { cargo install-update -a || { print -P "%F{red}Cargo failed%f"; (( errors++ )) } }
     fi
 
     print -P "\n%F{blue}==> DOTFILES%f"
@@ -115,5 +113,3 @@ function update() {
     trap - INT TERM
     (( errors == 0 )) && print -P "\n%F{green}==> All done!%f" || print -P "\n%F{yellow}==> Done with $errors error(s).%f"
 }
-alias cdr='cdr && exit'
-alias uclear='unalias clear && \clear'

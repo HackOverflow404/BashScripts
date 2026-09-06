@@ -1,7 +1,7 @@
 alias cat='batcat'
 alias locate='sudo updatedb; locate'
 alias clear='clear && figlet -tckf slant "Hack Overflow"'
-alias get_idf='. /home/d4rkc10ud/esp/esp-idf/export.sh'
+alias get_idf='. /home/hackoverflow404/esp/esp-idf/export.sh'
 alias copy-out='xclip -sel c'
 alias rwp='cd ~/Documents/Projects/RemoteWebcam; code ./; cd linux-app; venv'
 alias apparmor-stop='sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0'

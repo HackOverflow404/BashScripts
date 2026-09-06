@@ -13,7 +13,7 @@ fi
 # ---- Raspberry Pi SSH settings ----
 PI_HOST="tps-l2.local"
 PI_USER="user"
-PI_KEY="${HOME}/.ssh/hal_speaker_pi"
+PI_KEY="${HOME}/.ssh/id_ed25519_tps-l2"
 PI_SSH_OPTS=(
   -i "$PI_KEY"
   -o BatchMode=yes
