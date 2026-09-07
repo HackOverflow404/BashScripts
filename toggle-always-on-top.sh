@@ -1,51 +1,20 @@
 #!/usr/bin/env bash
-
-pin_x11() {
-  local wid state name action
-  wid=$(xdotool getactivewindow) || return 1
-  state=$(xprop -id "$wid" _NET_WM_STATE 2>/dev/null)
-  name=$(xdotool getactivewindow getwindowname 2>/dev/null)
-
-  if echo "$state" | grep -q "_NET_WM_STATE_ABOVE"; then
-    wmctrl -i -r "$wid" -b remove,above
-    action="unpinned"
-  else
-    wmctrl -i -r "$wid" -b add,above
-    action="pinned"
+# Hyprland's native float-and-pin toggle; pinned windows follow workspaces.
+set -euo pipefail
+if [[ ${1:-} == --help || ${1:-} == -h ]]; then
+  echo 'Usage: toggle-always-on-top (toggle float/pin on the focused window)'; exit 0
+fi
+(($# == 0)) || exit 2
+active=$(hyprctl activewindow -j)
+addr=$(jq -er '.address | select(test("^0x[0-9a-fA-F]+$"))' <<<"$active") || {
+  echo 'toggle-always-on-top: no focused window' >&2; exit 1;
+}
+if [[ $(jq -r '.pinned' <<<"$active") == true ]]; then
+  hyprctl dispatch "hl.dsp.window.pin({ window = 'address:$addr' })"
+else
+  if [[ $(jq -r '.floating' <<<"$active") != true ]]; then
+    hyprctl dispatch "hl.dsp.window.float({ window = 'address:$addr', action = 'toggle' })"
   fi
-
-  notify-send "${name} ${action}"
-}
-
-pin_wayland_gnome() {
-  local name action
-  name=$(gdbus call --session \
-    --dest org.gnome.Shell \
-    --object-path /org/gnome/Shell \
-    --method org.gnome.Shell.Eval \
-    "global.display.focus_window.title;" 2>/dev/null | grep -oP "(?<=')[^']*(?=')")
-
-  action=$(gdbus call --session \
-    --dest org.gnome.Shell \
-    --object-path /org/gnome/Shell \
-    --method org.gnome.Shell.Eval \
-    "global.display.focus_window.above ? 'unpinned' : 'pinned';" 2>/dev/null | grep -oP "(?<=')[^']*(?=')")
-
-  gdbus call --session \
-    --dest org.gnome.Shell \
-    --object-path /org/gnome/Shell \
-    --method org.gnome.Shell.Eval \
-    "let w = global.display.focus_window; w.above ? w.unmake_above() : w.make_above();" \
-    2>/dev/null
-
-  notify-send "${name} ${action}"
-}
-
-main() {
-  case "${XDG_SESSION_TYPE}" in
-    wayland) pin_wayland_gnome ;;
-    *)       pin_x11 ;;
-  esac
-}
-
-main
+  hyprctl dispatch "hl.dsp.window.pin({ window = 'address:$addr' })"
+  hyprctl dispatch "hl.dsp.window.alter_zorder({ window = 'address:$addr', mode = 'top' })"
+fi

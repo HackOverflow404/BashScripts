@@ -4,9 +4,9 @@
 #   cp venv ~/.local/bin/venv && chmod +x ~/.local/bin/venv
 #   venv --install-wrapper   ← run once, then reload your shell
 
-set -euo pipefail
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then set -euo pipefail; fi
 
-VERSION="1.1.0"
+VERSION="1.2.0"
 
 # ── Colours ───────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -64,7 +64,8 @@ $(_h "CLEAN  (--clean)")
 
   With a requirements file (-r):
     Computes the full dependency tree of requirements.txt and removes
-    everything not in it. Safe and precise.
+    everything not in it. Plain names/version pins only; complex requirements
+    are rejected. Installed optional dependencies are retained conservatively.
 
   Without a requirements file:
     Finds orphan packages — installed, but nothing else depends on them.
@@ -119,7 +120,7 @@ _is_core() {
 }
 
 # Normalise a package name to lowercase-hyphenated for comparisons
-_norm() { echo "$1" | tr '[:upper:]' '[:lower:]' | tr '_' '-' | tr -d ' '; }
+_norm() { echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[-_.]+/-/g; s/[[:space:]]//g'; }
 
 # Resolve the pip binary for a named venv, or fall back to the active venv.
 # Prints the pip path; exits 1 on failure.
@@ -132,7 +133,7 @@ _pip_for() {
         echo "$VIRTUAL_ENV/bin/pip"
     else
         _is_venv_dir "$name" || _die "No virtual environment found at './$name'"
-        echo "./$name/bin/pip"
+        echo "$(realpath -- "$name")/bin/pip"
     fi
 }
 
@@ -141,36 +142,41 @@ _pip_for() {
 _transitive_deps() {
     local pip_bin="$1"
     local req_file="$2"
-    local queue; queue=$(mktemp)
-    local seen;  seen=$(mktemp)
-    trap 'rm -f "$queue" "$seen"' RETURN
-
-    # Seed the queue from requirements.txt (strip comments, version specs, -r lines)
-    grep -v '^\s*#\|^\s*-\|^\s*$' "$req_file" 2>/dev/null \
-        | sed 's/[>=<!;].*//' \
-        | while IFS= read -r line; do _norm "$line"; done \
-        > "$queue" || true
-
-    while [[ -s "$queue" ]]; do
-        local pkg; pkg=$(head -1 "$queue")
-        sed -i '1d' "$queue"
-        [[ -z "$pkg" ]] && continue
-        grep -qx "$pkg" "$seen" 2>/dev/null && continue   # already visited
-        echo "$pkg" >> "$seen"
-
-        # Queue this package's dependencies
-        "$pip_bin" show "$pkg" 2>/dev/null \
-            | grep -i '^Requires:' \
-            | cut -d: -f2 \
-            | tr ',' '\n' \
-            | while IFS= read -r dep; do
-                dep=$(_norm "$dep")
-                [[ -z "$dep" ]] && continue
-                grep -qx "$dep" "$seen" 2>/dev/null || echo "$dep"
-              done >> "$queue" || true
-    done
-
-    cat "$seen"
+    "${pip_bin%/*}/python" - "$req_file" <<'DEPS'
+import sys, re
+from importlib import metadata
+from pip._vendor.packaging.requirements import Requirement
+normalize = lambda name: re.sub(r"[-_.]+", "-", name).lower()
+try:
+    roots = []
+    for line in open(sys.argv[1]):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        req = Requirement(line.split(" #", 1)[0])
+        # Fail closed instead of deleting dependencies from unsupported inputs.
+        if req.url or req.extras or req.marker:
+            raise ValueError("clean requires plain package names/version pins; extras, URLs and markers are unsupported")
+        roots.append(normalize(req.name))
+    installed = {normalize(d.metadata["Name"]): d for d in metadata.distributions()}
+    missing = set(roots) - installed.keys()
+    if missing:
+        raise ValueError("required packages are not installed: " + ", ".join(sorted(missing)))
+    queue, seen = roots[:], set()
+    while queue:
+        name = queue.pop()
+        if name in seen:
+            continue
+        seen.add(name)
+        dist = installed.get(name)
+        if dist:
+            # Keep all installed optional dependencies too; conservative removal.
+            queue.extend(normalize(Requirement(dep).name) for dep in (dist.requires or []))
+    print("\n".join(sorted(seen)))
+except Exception as exc:
+    print(f"venv: cannot safely compute dependencies: {exc}", file=sys.stderr)
+    sys.exit(1)
+DEPS
 }
 
 # ── cmd_create ────────────────────────────────────────────────────────────────
@@ -179,17 +185,20 @@ cmd_create() {
 
     command -v uv &>/dev/null || _die "uv not found. Install it: https://docs.astral.sh/uv/"
 
-    if [[ -d "$name" ]]; then
+    [[ -n $name && $name != -* && ! -L $name ]] || _die "Invalid venv directory: $name"
+    local resolved; resolved=$(realpath -m -- "$name")
+    [[ $resolved != / && $resolved != "$HOME" && $resolved != "$(pwd)" ]] || _die "Refusing to replace $resolved"
+    if [[ -e "$name" ]]; then
         if _is_venv_dir "$name"; then
             _warn "'$name' already exists ($(_py_ver "$name"))"
         else
-            _warn "'$name' exists but doesn't look like a venv"
+            _die "'$name' exists but does not look like a venv; refusing to remove it"
         fi
         printf "  Overwrite? [y/N] "
         confirm=""; read -r confirm || true
         echo ""
         [[ "${confirm,,}" == "y" ]] || { _ok "Aborted."; return 0; }
-        rm -rf "$name"
+        rm -rf -- "$name"
     fi
 
     _ok "Creating '$name' with $python (via uv) …"
@@ -219,15 +228,17 @@ cmd_freeze() {
     local packages
     if [[ "$minimal" == "yes" ]]; then
         # Top-level only: packages nothing else depends on
+        local raw; raw=$("$pip_bin" list --not-required --format=freeze) || _die "Could not list packages"
         packages=$(
-            "$pip_bin" list --not-required --format=freeze 2>/dev/null \
+            printf '%s\n' "$raw" \
             | grep -iv '^pip==\|^setuptools==\|^wheel==\|^pkg.resources==' \
             | grep -v '^-e' || true
         )
     else
         # Full freeze: every installed package, pinned
+        local raw; raw=$("$pip_bin" freeze) || _die "Could not freeze packages"
         packages=$(
-            "$pip_bin" freeze 2>/dev/null \
+            printf '%s\n' "$raw" \
             | grep -iv '^pip==\|^setuptools==\|^wheel==\|^pkg.resources==' \
             | grep -v '^-e' || true
         )
@@ -275,8 +286,9 @@ cmd_clean() {
 
     # All installed packages (normalised), excluding core
     local all_pkgs
+    local raw; raw=$("$pip_bin" list --format=freeze) || _die "Could not list packages"
     all_pkgs=$(
-        "$pip_bin" list --format=freeze 2>/dev/null \
+        printf '%s\n' "$raw" \
         | grep -iv '^pip==\|^setuptools==\|^wheel==\|^pkg.resources==' \
         | sed 's/==.*//' \
         | while IFS= read -r p; do _norm "$p"; done \
@@ -311,8 +323,9 @@ cmd_clean() {
         # ── Mode 2: orphan clean (no requirements file) ───────────────────
         # Find packages nothing else depends on
         local orphans
+        raw=$("$pip_bin" list --not-required --format=freeze) || _die "Could not list top-level packages"
         orphans=$(
-            "$pip_bin" list --not-required --format=freeze 2>/dev/null \
+            printf '%s\n' "$raw" \
             | grep -iv '^pip==\|^setuptools==\|^wheel==\|^pkg.resources==' \
             | sed 's/==.*//' \
             | while IFS= read -r p; do _norm "$p"; done \
@@ -358,13 +371,16 @@ cmd_clean() {
 # ── cmd_delete ────────────────────────────────────────────────────────────────
 cmd_delete() {
     local name="$1"
+    [[ ! -L $name ]] || _die "Refusing to delete a symlink"
+    local resolved; resolved=$(realpath -m -- "$name")
+    [[ $resolved != / && $resolved != "$HOME" && $resolved != "$(pwd)" ]] || _die "Refusing to delete $resolved"
     _is_venv_dir "$name" || _die "No virtual environment found at './$name'"
     echo -e "  ${BOLD}$name${NC}  $(_py_ver "$name")  $(_pkg_count "$name") packages"
     printf "  Permanently delete? [y/N] "
     confirm=""; read -r confirm || true
     echo ""
     [[ "${confirm,,}" == "y" ]] || { _ok "Aborted."; return 0; }
-    rm -rf "$name"
+    rm -rf -- "$name"
     _ok "Deleted: $name"
 }
 
@@ -441,24 +457,26 @@ venv() {
             if [[ "$dir" != "$(pwd)" ]]; then
                 echo -e "\033[0;31m✗\033[0m  Last venv was in: $dir" >&2; return 1
             fi
-            local activate="./$name/bin/activate"
+            local activate="$name/bin/activate"
+            [[ $activate == /* ]] || activate="./$activate"
             [[ -f "$activate" ]] || {
                 echo -e "\033[0;31m✗\033[0m  $activate not found." >&2; return 1
             }
-            source "$activate"
+            source "$activate" || return
             echo -e "\033[0;32m✓\033[0m  Re-activated: $name ($(python --version 2>&1))"
             ;;
 
         # ── Activate a venv ────────────────────────────────────────────────
         *)
             local name="${1:-venv}"
-            local activate="./$name/bin/activate"
+            local activate="$name/bin/activate"
+            [[ $activate == /* ]] || activate="./$activate"
             if [[ ! -f "$activate" ]]; then
                 echo -e "\033[0;31m✗\033[0m  No activate script at $activate" >&2
                 echo    "   Create one with: venv -c $name" >&2
                 return 1
             fi
-            source "$activate"
+            source "$activate" || return
             echo -e "\033[0;32m✓\033[0m  Activated: $name ($(python --version 2>&1))"
             local cache="${XDG_CACHE_HOME:-$HOME/.cache}"
             mkdir -p "$cache" && echo "$(pwd):$name" > "$cache/venv-last"
@@ -521,7 +539,7 @@ while [[ $# -gt 0 ]]; do
             shift
             while [[ $# -gt 0 ]]; do
                 case "$1" in
-                    -r|--requirements) shift; REQ_FILE="$1"; shift ;;
+                    -r|--requirements) [[ $# -ge 2 && -n $2 ]] || _die "Missing requirements filename"; shift; REQ_FILE="$1"; shift ;;
                     --no-requirements) AUTO_REQ="no"; shift ;;
                     -*)  _die "Unknown option for -c: $1" ;;
                     *)
@@ -550,7 +568,7 @@ while [[ $# -gt 0 ]]; do
             fi
             while [[ $# -gt 0 ]]; do
                 case "$1" in
-                    -o|--output)  shift; OUTPUT="$1"; shift ;;
+                    -o|--output)  [[ $# -ge 2 && -n $2 ]] || _die "Missing output filename"; shift; OUTPUT="$1"; shift ;;
                     --minimal)    MINIMAL="yes"; shift ;;
                     *) _die "Unknown option for -f: $1" ;;
                 esac
@@ -568,7 +586,7 @@ while [[ $# -gt 0 ]]; do
             fi
             while [[ $# -gt 0 ]]; do
                 case "$1" in
-                    -r|--requirements) shift; REQ_FILE="$1"; shift ;;
+                    -r|--requirements) [[ $# -ge 2 && -n $2 ]] || _die "Missing requirements filename"; shift; REQ_FILE="$1"; shift ;;
                     --dry-run)         DRY_RUN="yes"; shift ;;
                     *) _die "Unknown option for --clean: $1" ;;
                 esac

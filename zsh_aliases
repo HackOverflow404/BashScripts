@@ -8,9 +8,9 @@ alias pip='uv pip'
 alias pip3='uv pip'
 alias batt='upower -i $(upower -e | grep BAT) | grep -E "state|percentage|time"'
 alias jadx='flatpak run com.github.skylot.jadx'
-alias ocr='. ~/Documents/BashScripts/ocr.sh'
-alias locate='sudo updatedb; command locate'
-alias apparmor-stop='sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0'
+alias ocr='omarchy capture text'
+alias locate='command locate'
+alias apparmor-stop='pkexec sysctl -w kernel.apparmor_restrict_unprivileged_userns=0'
 
 # clear + banner
 alias clear='clear && figlet -tckf slant "Hack Overflow"'
@@ -22,7 +22,7 @@ alias uclear='unalias clear && \clear'
 alias cdp='cd ~/Documents/Projects/'
 alias cdi='cd ~/Documents/Internship-Care-Health/'
 alias cdu='cd ~/Documents/School/UIUC/'
-alias cdr='cdr && exit'
+# cdr is an executable; keep the terminal open after launching.
 
 # ===========================================================================
 # Git identity switch
@@ -38,13 +38,13 @@ alias rsp='cd ~/Documents/Projects/ReceiptScanner && code ./ && clear && npm sta
 alias rupd='cd ~/Documents/Projects/fetch-resume/ && node index.js && cd - > /dev/null'
 alias rcp='(cd ~/Documents/Projects/fetch-resume/ && setsid ./venv/bin/python3 main.py </dev/null >/tmp/fetch-resume.log 2>&1 &)'
 alias rwp-mic-start='pactl load-module module-null-sink sink_name="Pixel-Streamer-Mic" sink_properties=device.description="Pixel Streamer Mic"'
-alias rwp-cam-start='sudo modprobe v4l2loopback devices=1 card_label="Pixel Streamer Webcam"'
+alias rwp-cam-start='pkexec modprobe v4l2loopback devices=1 card_label="Pixel Streamer Webcam"'
 
 # ===========================================================================
 # Hopcharge
 # ===========================================================================
 alias claude-work='CLAUDE_CONFIG_DIR=$HOME/.claude-hopcharge claude'
-alias cdh='cd ~/Documents/Hopcharge/hopcharge-creative-pipeline && docker start hopcharge-pg hopcharge-creative-pipeline-minio-init-1; tmux split-window -v && tmux send-keys "cd ~/Documents/Hopcharge/hopcharge-creative-pipeline && npm run dev" Enter && tmux last-pane && claude-work'
+alias cdh='cd ~/Documents/Hopcharge/hopcharge-creative-pipeline && docker start hopcharge-pg hopcharge-creative-pipeline-minio-init-1 && tmux split-window -v && tmux send-keys "cd ~/Documents/Hopcharge/hopcharge-creative-pipeline && npm run dev" Enter && tmux last-pane && claude-work'
 
 # ===========================================================================
 # TPS-L2 NAS / HAL speaker
@@ -60,14 +60,15 @@ alias hal-standby='ssh -i ~/.ssh/id_ed25519_tps-l2 -o BatchMode=yes -o ConnectTi
 # ===========================================================================
 # system update — Arch / Omarchy
 # ===========================================================================
-update() {
+update() (
     local errors=0
 
-    # Print an error summary even if interrupted
-    trap '(( errors > 0 )) && print -P "\n%F{yellow}==> Interrupted with $errors error(s) so far.%f"' INT TERM
+    # Exit on interruption without leaking traps into the calling shell
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
 
     print -P "\n%F{blue}==> OMARCHY + PACMAN + AUR%f"
-    omarchy-update -y || { print -P "%F{red}omarchy-update failed%f"; (( errors++ )) }
+    omarchy update -y || { print -P "%F{red}omarchy-update failed%f"; (( errors++ )) }
 
     if command -v flatpak &> /dev/null; then
         print -P "\n%F{blue}==> FLATPAK%f"
@@ -87,8 +88,9 @@ update() {
 
     if command -v npm &> /dev/null; then
         print -P "\n%F{blue}==> NPM GLOBAL%f"
-        npm update -g 2>&1 | grep -Ev "^npm (warn|notice)" || true
-        (( pipestatus[1] != 0 )) && { print -P "%F{red}NPM failed%f"; (( errors++ )) }
+        npm update -g 2>&1 | grep -Ev "^npm (warn|notice)"
+        local npm_rc=${pipestatus[1]}
+        (( npm_rc != 0 )) && { print -P "%F{red}NPM failed%f"; (( errors++ )) }
     fi
 
     if command -v rustup &> /dev/null; then
@@ -101,7 +103,7 @@ update() {
     if ! chezmoi re-add; then
         print -P "%F{red}chezmoi re-add failed%f"; (( errors++ ))
     else
-        chezmoi git -- add -A
+        chezmoi git -- add -A || { print -P "%F{red}Dotfiles staging failed%f"; return 1; }
         if ! chezmoi git -- diff --cached --quiet; then
             chezmoi git -- commit -m "chore: sync dotfiles" && \
                 chezmoi git -- push || { print -P "%F{red}Dotfiles push failed%f"; (( errors++ )) }
@@ -112,4 +114,6 @@ update() {
 
     trap - INT TERM
     (( errors == 0 )) && print -P "\n%F{green}==> All done!%f" || print -P "\n%F{yellow}==> Done with $errors error(s).%f"
-}
+
+    return $(( errors > 0 ))
+)

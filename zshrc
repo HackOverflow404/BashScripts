@@ -3,8 +3,20 @@
 # ============================================================================
 # Exec into tmux before the expensive init below; otherwise that init runs
 # here, gets discarded by the exec, then repeats inside tmux.
-if command -v tmux &> /dev/null && [ -n "$PS1" ] && [[ ! "$TERM" =~ screen ]] && [[ ! "$TERM" =~ tmux ]] && [ -z "$TMUX" ]; then
+if [[ -t 0 && -t 1 ]] && command -v tmux &> /dev/null && [ -n "$PS1" ] && [[ ! "$TERM" =~ screen ]] && [[ ! "$TERM" =~ tmux ]] && [ -z "$TMUX" ]; then
   exec tmux
+fi
+
+# Print the greeting before instant prompt redirects stdout away from the terminal.
+if [[ -o interactive && -t 1 ]]; then
+  _logo=~/Documents/hacking/d4rkc10ud-logo-ASCII-art-small.txt
+  clear
+  if [[ -f $_logo ]]; then
+    fastfetch --file "$_logo"
+  else
+    fastfetch
+  fi
+  unset _logo
 fi
 
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
@@ -93,7 +105,7 @@ fi
 # ============================================================================
 venv() {
     case "${1:-}" in
-        -h|--help|-v|--version|-c|--create|-d|--delete|-l|--list|-i|--info|--install-wrapper)
+        -h|--help|-v|--version|-c|--create|-f|--freeze|--clean|-d|--delete|-l|--list|-i|--info|--install-wrapper)
             command venv "$@"
             ;;
         -)
@@ -107,20 +119,22 @@ venv() {
             if [[ "$dir" != "$(pwd)" ]]; then
                 echo "✗  Last venv was in a different directory: $dir" >&2; return 1
             fi
-            local activate="./$name/bin/activate"
+            local activate="$name/bin/activate"
+            [[ $activate == /* ]] || activate="./$activate"
             [[ -f "$activate" ]] || { echo "✗  $activate not found." >&2; return 1; }
-            source "$activate"
+            source "$activate" || return
             echo -e "\033[0;32m✓\033[0m  Re-activated: $name ($(python --version 2>&1))"
             ;;
         *)
             local name="${1:-venv}"
-            local activate="./$name/bin/activate"
+            local activate="$name/bin/activate"
+            [[ $activate == /* ]] || activate="./$activate"
             if [[ ! -f "$activate" ]]; then
                 echo -e "\033[0;31m✗\033[0m  No activate script at $activate" >&2
                 echo    "   Create one with: venv --create $name" >&2
                 return 1
             fi
-            source "$activate"
+            source "$activate" || return
             echo -e "\033[0;32m✓\033[0m  Activated: $name ($(python --version 2>&1))"
             local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
             mkdir -p "$cache_dir"
@@ -130,17 +144,6 @@ venv() {
 }
 
 # ============================================================================
-# Prompt & Greeting
+# Prompt
 # ============================================================================
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-
-if [[ -o interactive ]]; then
-  _logo=~/Documents/hacking/d4rkc10ud-logo-ASCII-art-small.txt
-  clear
-  if [[ -f $_logo ]]; then
-    fastfetch --file "$_logo"
-  else
-    fastfetch
-  fi
-  unset _logo
-fi

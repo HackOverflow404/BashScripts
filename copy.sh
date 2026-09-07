@@ -1,150 +1,73 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-clip_copy() {
-  if command -v wl-copy >/dev/null 2>&1 && [[ -n "${WAYLAND_DISPLAY-}" ]]; then
-    wl-copy
-  elif command -v xclip >/dev/null 2>&1 && [[ -n "${DISPLAY-}" ]]; then
-    xclip -selection clipboard
-  elif command -v xsel >/dev/null 2>&1 && [[ -n "${DISPLAY-}" ]]; then
-    xsel --clipboard --input
-  elif command -v vis-clipboard >/dev/null 2>&1; then
-    vis-clipboard --copy
-  else
-    echo "copy: no clipboard tool found (install wl-clipboard or xclip/xsel)" >&2
-    exit 2
-  fi
-}
-
+# Capture command output, files, or stdin to the Wayland clipboard.
+set -uo pipefail
 usage() {
-  cat <<'EOF' >&2
-Usage:
-  copy <cmd> [args...]              Copy "$ cmd…" + stdout+stderr
-  copy -o <cmd> [args...]           Copy stdout+stderr only (no "$ cmd" header)
-  copy -f <file>                    Copy file contents
-  copy -c '<shell pipeline>'        Copy "$ pipeline…" + stdout+stderr
-  copy -o -c '<shell pipeline>'     Copy stdout+stderr only (no header)
-
-Notes:
-  - For pipelines, use -c and quote the whole pipeline string.
+  cat <<'EOF'
+Usage: copy [-o] command [args...]
+       copy [-o] -c 'shell pipeline'
+       copy -f FILE
+       command | copy
+       copy --help
+Copies combined stdout/stderr; -o omits the command header.
+-c uses $SHELL with pipefail (no interactive aliases). Use -- before a command
+whose name starts with a dash. -f - reads stdin. Command exit codes are retained.
 EOF
-  exit 2
 }
-
-mode="all"      # all | out | file
-file=""
-shell_cmd=""
-
-while getopts ":of:c:" opt; do
-  case "$opt" in
-    o) mode="out" ;;
-    f) mode="file"; file="$OPTARG" ;;
-    c) shell_cmd="$OPTARG" ;;
-    *) usage ;;
+fail() { printf 'copy: %s\n' "$*" >&2; exit 2; }
+mode=command; header=1; value=''
+while (($#)); do
+  case $1 in
+    -h|--help) usage; exit 0 ;;
+    -o) header=0; shift ;;
+    -f|-c)
+      [[ $mode == command && $# -ge 2 ]] || fail 'use exactly one -f FILE or -c PIPELINE'
+      [[ $1 == -f ]] && mode=file || mode=shell
+      value=$2; shift 2 ;;
+    --) shift; break ;;
+    -*) fail "unknown option: $1" ;;
+    *) break ;;
   esac
 done
-shift $((OPTIND-1))
-
-tmp="$(mktemp)"
-cleanup() { rm -f "$tmp"; }
-trap cleanup EXIT
-
+[[ $mode == command || $# == 0 ]] || fail 'unexpected arguments after -f/-c'
+if [[ $mode == command && $# == 0 ]]; then
+  [[ ! -t 0 ]] || { usage >&2; exit 2; }
+  mode=stdin
+fi
+command -v wl-copy >/dev/null || fail 'wl-copy is required (omarchy pkg add wl-clipboard)'
+[[ -n ${WAYLAND_DISPLAY:-} ]] || fail 'no Wayland session available'
+if [[ $mode == file ]]; then
+  [[ $value != - ]] || mode=stdin
+  if [[ $mode == file ]]; then
+    [[ -f $value && -r $value ]] || fail "cannot read regular file: $value"
+    exec wl-copy <"$value"
+  fi
+fi
+[[ $mode != stdin ]] || exec wl-copy
+umask 077
+tmp=$(mktemp) || exit 1
+trap 'rm -f -- "$tmp"' EXIT
+trap 'exit 143' TERM
 interrupted=0
 trap 'interrupted=1' INT
-
-run_and_tee() {
-  # Usage: run_and_tee [-a] -- command args...
-  # Runs command, merges stderr->stdout, tees into $tmp, returns the command's exit code.
-  local tee_flag=""
-  if [[ "${1-}" == "-a" ]]; then
-    tee_flag="-a"
-    shift
-  fi
-  [[ "${1-}" == "--" ]] || { echo "copy: internal error (missing --)" >&2; exit 99; }
-  shift
-
-  set +e
-  "$@" 2>&1 | tee $tee_flag "$tmp"
-  local ps=("${PIPESTATUS[@]}")
-  set -e
-  return "${ps[0]}"
-}
-
-run_shell_and_tee() {
-  # Usage: run_shell_and_tee [-a] -- "shell command string"
-  local tee_flag=""
-  if [[ "${1-}" == "-a" ]]; then
-    tee_flag="-a"
-    shift
-  fi
-  [[ "${1-}" == "--" ]] || { echo "copy: internal error (missing --)" >&2; exit 99; }
-  shift
-  local cmd="${1-}"
-  [[ -n "$cmd" ]] || usage
-
-  set +e
-  bash -o pipefail -c "$cmd" 2>&1 | tee $tee_flag "$tmp"
-  local ps=("${PIPESTATUS[@]}")
-  set -e
-  return "${ps[0]}"
-}
-
-if [[ "$mode" == "file" ]]; then
-  [[ -n "$file" ]] || usage
-  [[ $# -eq 0 && -z "$shell_cmd" ]] || usage
-  cat -- "$file" | clip_copy
-  exit 0
-fi
-
-finish() {
-  local rc="${1:-0}"
-  cat "$tmp" | clip_copy
-  (( interrupted )) && exit 130
-  exit "$rc"
-}
-
-if [[ -n "$shell_cmd" ]]; then
-  [[ $# -eq 0 ]] || usage
-
-  if [[ "$mode" == "all" ]]; then
-    printf '$ %s\n' "$shell_cmd" >"$tmp"
-    if run_shell_and_tee -a -- "$shell_cmd"; then
-      :
-    else
-      rc=$?
-    fi
-    finish "${rc:-0}"
+if ((header)); then
+  if [[ $mode == shell ]]; then printf '$ %s\n' "$value" >"$tmp"
   else
-    if run_shell_and_tee -- "$shell_cmd"; then
-      rc=0
-    else
-      rc=$?
-    fi
-    finish "$rc"
+    { printf '$'; printf ' %q' "$@"; printf '\n'; } >"$tmp"
   fi
 fi
-
-# argv-mode (no -c): runs the command directly (no eval).
-[[ $# -ge 1 ]] || usage
-
-if [[ "$mode" == "all" ]]; then
-  {
-    printf '$'
-    for a in "$@"; do printf ' %q' "$a"; done
-    printf '\n'
-  } >"$tmp"
-
-  if run_and_tee -a -- "$@"; then
-    :
-  else
-    rc=$?
-  fi
-  finish "${rc:-0}"
+if [[ $mode == shell ]]; then
+  shell=${SHELL:-/bin/bash}
+  case ${shell##*/} in bash|zsh) ;; *) fail '-c requires bash or zsh in SHELL' ;; esac
+  "$shell" -o pipefail -c "$value" 2>&1 | tee -a -- "$tmp"
 else
-  if run_and_tee -- "$@"; then
-    rc=0
-  else
-    rc=$?
-  fi
-  finish "$rc"
+  "$@" 2>&1 | tee -a -- "$tmp"
 fi
+statuses=("${PIPESTATUS[@]}")
+rc=${statuses[0]}
+((rc != 0)) || rc=${statuses[1]}
+if ! wl-copy <"$tmp"; then
+  printf 'copy: clipboard write failed\n' >&2
+  ((rc != 0)) || rc=1
+fi
+((interrupted == 0)) || rc=130
+exit "$rc"

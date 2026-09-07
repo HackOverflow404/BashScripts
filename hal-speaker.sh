@@ -32,7 +32,7 @@ remote_run() {
 }
 
 # Save current default sink so we can restore it
-OLD_DEFAULT="$(pactl info | awk -F': ' '/Default Sink:/{print $2}')"
+OLD_DEFAULT="$(pactl get-default-sink)"
 created_module_id=""
 
 cleanup() {
@@ -49,7 +49,9 @@ cleanup() {
     pactl unload-module "$created_module_id" >/dev/null 2>&1 || true
   fi
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # Signal Pi to open AudioConnect (best effort)
 remote_run "$CMD_START_APP"
