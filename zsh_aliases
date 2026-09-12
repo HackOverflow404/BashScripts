@@ -11,6 +11,7 @@ alias jadx='flatpak run com.github.skylot.jadx'
 alias ocr='omarchy capture text'
 alias locate='command locate'
 alias apparmor-stop='pkexec sysctl -w kernel.apparmor_restrict_unprivileged_userns=0'
+alias open='xdg-open'
 
 # clear + banner
 alias clear='clear && figlet -tckf slant "Hack Overflow"'

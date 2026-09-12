@@ -153,3 +153,7 @@ if [ -f '/home/hackoverflow404/google-cloud-sdk/path.zsh.inc' ]; then . '/home/h
 
 # The next line enables shell command completion for gcloud.
 if [ -f '/home/hackoverflow404/google-cloud-sdk/completion.zsh.inc' ]; then . '/home/hackoverflow404/google-cloud-sdk/completion.zsh.inc'; fi
+
+
+# Added by Antigravity CLI installer
+export PATH="/home/hackoverflow404/.local/bin:$PATH"
