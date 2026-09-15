@@ -157,3 +157,7 @@ if [ -f '/home/hackoverflow404/google-cloud-sdk/completion.zsh.inc' ]; then . '/
 
 # Added by Antigravity CLI installer
 export PATH="/home/hackoverflow404/.local/bin:$PATH"
+
+# >>> Codex installer >>>
+export PATH="/home/hackoverflow404/.local/bin:$PATH"
+# <<< Codex installer <<<
