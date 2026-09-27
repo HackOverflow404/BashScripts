@@ -41,7 +41,7 @@ source $ZSH/oh-my-zsh.sh
 # ============================================================================
 # Shell Options & History
 # ============================================================================
-setopt histignorealldups sharehistory
+setopt histignorealldups incappendhistory
 
 # Use emacs keybindings even if EDITOR is set to vi
 bindkey -e
