@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SINK="HAL9000"
-DESC="HAL-9000"
+SINK="Clippy"
+DESC="Clippy"
 
 AUDIOR_BIN="/opt/audiorelay/bin/AudioRelay"
 if [ ! -x "$AUDIOR_BIN" ]; then
@@ -11,9 +11,9 @@ if [ ! -x "$AUDIOR_BIN" ]; then
 fi
 
 # ---- Raspberry Pi SSH settings ----
-PI_HOST="tps-l2.local"
+PI_HOST="mainframe.local"
 PI_USER="user"
-PI_KEY="${HOME}/.ssh/id_ed25519_tps-l2"
+PI_KEY="${HOME}/.ssh/id_ed25519_mainframe"
 PI_SSH_OPTS=(
   -i "$PI_KEY"
   -o BatchMode=yes

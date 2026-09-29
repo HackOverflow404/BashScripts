@@ -48,9 +48,9 @@ alias claude-work='CLAUDE_CONFIG_DIR=$HOME/.claude-hopcharge claude'
 alias cdh='cd ~/Documents/Hopcharge/hopcharge-creative-pipeline && docker start hopcharge-pg hopcharge-creative-pipeline-minio-init-1 && tmux split-window -v && tmux send-keys "cd ~/Documents/Hopcharge/hopcharge-creative-pipeline && npm run dev" Enter && tmux last-pane && claude-work'
 
 # ===========================================================================
-# TPS-L2 NAS / HAL speaker
+# Mainframe NAS / Clippy speaker
 # ===========================================================================
-alias hal-standby='ssh -i ~/.ssh/id_ed25519_tps-l2 -o BatchMode=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes user@tps-l2.local "adb shell am start -n br.com.zetabit.ios_standby/br.com.zetabit.ios_standby.MainActivity" > /dev/null 2>&1'
+alias clippy-standby='ssh -i ~/.ssh/id_ed25519_mainframe -o BatchMode=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes user@mainframe.local "adb shell am start -n br.com.zetabit.ios_standby/br.com.zetabit.ios_standby.MainActivity" > /dev/null 2>&1'
 
 # Dropped in the Omarchy migration (re-add if you reinstall the tooling):
 #   get_idf        — esp-idf export from a stale /home/d4rkc10ud path
