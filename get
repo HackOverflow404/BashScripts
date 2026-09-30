@@ -8,7 +8,6 @@ cp "$HOME/.zshrc" ./zshrc
 cp "$HOME/.p10k.zsh" ./p10k.zsh
 cp "$HOME/.local/bin/copy" ./copy.sh
 cp "$HOME/.local/bin/venv" ./venv.sh
-cp "$HOME/.local/bin/clippy-speaker" ./clippy-speaker.sh
 cp "$HOME/.local/bin/toggle-always-on-top" ./toggle-always-on-top.sh
 cp "$HOME/.local/bin/res" ./res.sh
 cp "/usr/local/bin/rp" ./rp.sh
