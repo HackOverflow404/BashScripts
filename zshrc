@@ -144,6 +144,37 @@ venv() {
 }
 
 # ============================================================================
+# Hyprland instance follow
+# ============================================================================
+# A shell (or tmux server) that outlives a Hyprland crash/restart keeps the dead
+# instance's signature, so hyprctl and `omarchy restart shell` silently talk to
+# nothing. Before each prompt, if that instance's Hyprland is gone, switch to the
+# newest live one (and fix tmux's global env so new panes inherit it). A dead
+# instance leaves its .socket.sock behind, so liveness is the PID on line 1 of
+# hyprland.lock. Cheap: one file read + kill -0.
+_hypr_instance_alive() {
+  local pid
+  [[ -r $1/hyprland.lock ]] || return 1
+  read -r pid < $1/hyprland.lock 2>/dev/null
+  [[ $pid == <-> ]] && kill -0 $pid 2>/dev/null
+}
+_hypr_follow_instance() {
+  local rt=${XDG_RUNTIME_DIR:-/run/user/$UID}/hypr
+  [[ -d $rt ]] || return
+  [[ -n $HYPRLAND_INSTANCE_SIGNATURE ]] && _hypr_instance_alive $rt/$HYPRLAND_INSTANCE_SIGNATURE && return
+  local d
+  for d in $rt/*(N/om); do
+    if _hypr_instance_alive $d; then
+      export HYPRLAND_INSTANCE_SIGNATURE=${d:t}
+      [[ -n $TMUX ]] && tmux set-environment -g HYPRLAND_INSTANCE_SIGNATURE "${d:t}" 2>/dev/null
+      return
+    fi
+  done
+}
+autoload -Uz add-zsh-hook
+add-zsh-hook precmd _hypr_follow_instance
+
+# ============================================================================
 # Prompt
 # ============================================================================
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
